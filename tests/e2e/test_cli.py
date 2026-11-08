@@ -54,7 +54,7 @@ class Cli(unittest.TestCase):
         r = lense("--help")
         self.assertEqual(r.returncode, 0)
         for opt in ("--json", "--target", "--record", "--no-vtables",
-                    "--expand-system", "--lang", "--color"):
+                    "--expand-system", "--source", "--lang", "--color"):
             self.assertIn(opt, r.stdout)
 
     def test_version(self):
@@ -119,6 +119,45 @@ class Cli(unittest.TestCase):
         text = lense("--color=false", LINUX, "--no-vtables", path).stdout
         self.assertNotIn("vtable for", text)
         self.assertIn("vptr", text)
+
+    def test_source_above_each_record(self):
+        path = self.write("t.cpp", "// Two records.\n"
+                          "struct A {\n  int a;\n};\nstruct B { char b; };\n")
+        text = lense("--color=false", LINUX, "--source", path).stdout
+        self.assertTrue(text.startswith(
+            "   2 | struct A {\n   3 |   int a;\n   4 | };\nstruct A  size 4"), text)
+        self.assertIn("\n   5 | struct B { char b; };\nstruct B  size 1", text)
+        plain = lense("--color=false", LINUX, path).stdout
+        self.assertNotIn(" | ", plain)
+
+    def test_source_in_json_only_when_asked(self):
+        path = self.write("t.cpp", "\nstruct A { int a; };\n")
+        a = records(lense("--json", LINUX, "--source", path).stdout)["A"]
+        self.assertEqual(a["source"], {"line": 2, "text": "struct A { int a; };\n"})
+        self.assertNotIn("source", records(lense("--json", LINUX, path).stdout)["A"])
+
+    def test_source_shapes(self):
+        path = self.write("t.cpp", """\
+template <typename T>
+struct Box { T v; };
+Box<int> b;
+typedef struct { short s; } Anon;
+void f() {
+    struct Local {
+        int y;
+    } l;
+}
+""")
+        recs = records(lense("--json", LINUX, "--source", path).stdout)
+        # An instantiation shows its template.
+        self.assertEqual(recs["Box<int>"]["source"],
+                         {"line": 1, "text": "template <typename T>\nstruct Box { T v; };\n"})
+        # An anonymous struct shows the typedef that names it.
+        self.assertEqual(recs["Anon"]["source"]["text"],
+                         "typedef struct { short s; } Anon;\n")
+        # A local class loses the indentation of the function body.
+        self.assertEqual(recs["f()::Local"]["source"]["text"],
+                         "struct Local {\n    int y;\n}\n")
 
     def test_target_switches_abi(self):
         path = self.write("t.cpp", DERIVED)

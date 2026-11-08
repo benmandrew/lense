@@ -27,6 +27,10 @@ static cl::opt<bool>
     expandSystem("expand-system",
                  cl::desc("Expand members whose type is from a system header"),
                  cl::cat(category));
+static cl::opt<bool> source("source",
+                            cl::desc("Print each record's definition above "
+                                     "its layout"),
+                            cl::cat(category));
 static cl::list<std::string>
     records("record", cl::desc("Only show this record (qualified name)"),
             cl::value_desc("name"), cl::CommaSeparated, cl::cat(category));
@@ -82,6 +86,7 @@ int main(int argc, char **argv) {
   lense::RunOptions opts;
   opts.analyze.vtables = !noVTables;
   opts.analyze.expandSystem = expandSystem;
+  opts.analyze.source = source;
   opts.analyze.records.assign(records.begin(), records.end());
   if (!target.empty())
     opts.clangArgs.push_back("--target=" + target);

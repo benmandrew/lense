@@ -172,6 +172,11 @@ void printJson(llvm::raw_ostream &os, const Report &report) {
           J.attribute("nv_size", r.nvSize);
           J.attribute("nv_align", r.nvAlign);
           J.attribute("padding_bits", r.paddingBits);
+          if (!r.source.empty())
+            J.attributeObject("source", [&] {
+              J.attribute("line", r.sourceLine);
+              J.attribute("text", r.source);
+            });
           J.attributeArray("holes", [&] {
             for (const Hole &h : r.holes)
               J.object([&] { position(J, h.offsetBits, h.sizeBits, false); });

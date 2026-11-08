@@ -1,5 +1,7 @@
 #include "Text.h"
 
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
@@ -52,6 +54,7 @@ public:
   Printer(llvm::raw_ostream &os, bool ms) : os(os), ms(ms) {}
 
   void record(const Record &r) {
+    source(r);
     bold();
     os << r.tag << ' ' << r.name;
     reset();
@@ -98,6 +101,25 @@ public:
 private:
   llvm::raw_ostream &os;
   bool ms;
+
+  // The definition with line numbers, e.g. "   3 | struct S {".
+  void source(const Record &r) {
+    if (r.source.empty())
+      return;
+    llvm::SmallVector<llvm::StringRef, 16> lines;
+    llvm::StringRef(r.source).rtrim('\n').split(lines, '\n');
+    std::string last = std::to_string(r.sourceLine + lines.size() - 1);
+    size_t width = std::max<size_t>(4, last.size());
+    for (size_t i = 0; i < lines.size(); ++i) {
+      std::string n = std::to_string(r.sourceLine + i);
+      dim();
+      os << std::string(width - n.size(), ' ') << n << " |";
+      reset();
+      if (!lines[i].empty())
+        os << ' ' << lines[i];
+      os << '\n';
+    }
+  }
 
   void color(Color c, bool b = false) { os.changeColor(c, b); }
   void bold() { os.changeColor(Color::SAVEDCOLOR, true); }

@@ -112,6 +112,10 @@ struct Record {
   uint64_t nvSize = 0;
   uint64_t nvAlign = 0;
   uint64_t paddingBits = 0;
+  // The definition as written, in whole lines with common indentation
+  // removed, and the line it starts on. Empty unless asked for.
+  std::string source;
+  unsigned sourceLine = 0;
   Node layout;
   std::vector<Hole> holes;
   std::vector<VTable> vtables;

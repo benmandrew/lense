@@ -11,6 +11,7 @@
 #include "clang/AST/VTableBuilder.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Lex/Lexer.h"
 #include "llvm/ADT/DenseSet.h"
 
 #include <algorithm>
@@ -56,6 +57,8 @@ public:
     // Only C++ records carry non-virtual layout info.
     R.nvSize = CXX ? L.getNonVirtualSize().getQuantity() : R.size;
     R.nvAlign = CXX ? L.getNonVirtualAlignment().getQuantity() : R.align;
+    if (opts.source)
+      addSource(R, RD);
 
     R.layout.role = Role::Root;
     layoutRecord(R.layout, RD, 0, CompleteObject{CXX, 0}, true);
@@ -74,6 +77,68 @@ public:
         addItaniumVTable(R, CXX);
     }
     return R;
+  }
+
+  // Copies the definition of RD as written. An instantiation shows its
+  // template, and an anonymous struct named by a typedef shows the typedef.
+  void addSource(Record &R, const RecordDecl *RD) const {
+    const Decl *D = RD;
+    if (const TypedefNameDecl *TD = RD->getTypedefNameForAnonDecl();
+        TD && !RD->getIdentifier())
+      D = TD;
+    if (const auto *CXX = dyn_cast<CXXRecordDecl>(RD))
+      if (const CXXRecordDecl *P = CXX->getTemplateInstantiationPattern()) {
+        D = P;
+        if (const ClassTemplateDecl *T = P->getDescribedClassTemplate())
+          D = T;
+      }
+
+    const SourceManager &SM = C.getSourceManager();
+    CharSourceRange range = SM.getExpansionRange(D->getSourceRange());
+    SourceLocation end = range.getEnd();
+    if (range.isTokenRange())
+      end = Lexer::getLocForEndOfToken(end, 0, SM, C.getLangOpts());
+    auto [fid, begin] = SM.getDecomposedLoc(range.getBegin());
+    auto [endFid, endOff] = SM.getDecomposedLoc(end);
+    if (fid.isInvalid() || fid != endFid || endOff < begin)
+      return;
+    bool invalid = false;
+    llvm::StringRef buf = SM.getBufferData(fid, &invalid);
+    if (invalid || endOff > buf.size())
+      return;
+
+    // Take whole lines, so nested and local classes keep their shape. When
+    // the definition starts mid-line, pad its first line to its column.
+    size_t lineStart = buf.rfind('\n', begin);
+    lineStart = lineStart == llvm::StringRef::npos ? 0 : lineStart + 1;
+    llvm::StringRef before = buf.slice(lineStart, begin);
+    std::string text = before.trim(" \t").empty()
+                           ? before.str()
+                           : std::string(begin - lineStart, ' ');
+    // Keep the semicolon that closes the definition.
+    size_t stop = endOff;
+    while (stop < buf.size() && (buf[stop] == ' ' || buf[stop] == '\t'))
+      ++stop;
+    if (stop < buf.size() && buf[stop] == ';')
+      endOff = stop + 1;
+    text += buf.slice(begin, endOff).str();
+
+    llvm::SmallVector<llvm::StringRef, 16> lines;
+    llvm::StringRef(text).split(lines, '\n');
+    size_t indent = llvm::StringRef::npos;
+    for (llvm::StringRef l : lines) {
+      llvm::StringRef body = l.rtrim(" \t\r");
+      if (!body.empty())
+        indent = std::min(indent, body.find_first_not_of(" \t"));
+    }
+    if (indent == llvm::StringRef::npos)
+      indent = 0;
+    for (size_t i = 0; i < lines.size(); ++i) {
+      llvm::StringRef l = lines[i].rtrim(" \t\r");
+      R.source += l.size() > indent ? l.drop_front(indent).str() : "";
+      R.source += '\n';
+    }
+    R.sourceLine = SM.getPresumedLoc(range.getBegin()).getLine();
   }
 
   bool msABI() const { return ms; }
