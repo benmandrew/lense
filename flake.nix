@@ -118,6 +118,17 @@
             installPhase = "ninja -C build install";
             dontFixup = true;
           });
+
+          # The browser front end, ready to serve as static files.
+          web = pkgs.buildNpmPackage {
+            pname = "lense-web";
+            version = "0.1.0";
+            src = ./web;
+            npmDeps = pkgs.importNpmLock { npmRoot = ./web; };
+            npmConfigHook = pkgs.importNpmLock.npmConfigHook;
+            LENSE_WASM_DIR = "${wasm}/share/lense/web";
+            installPhase = "cp -r dist $out";
+          };
         });
 
       checks = forAllSystems (pkgs: {

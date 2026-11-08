@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lense</title>
+  <meta name="description" content="C and C++ record layouts and vtables, computed by clang in the browser">
+</head>
+<body>
+  <header class="bar">
+    <h1>lense</h1>
+    <label>Language
+      <select id="lang">
+        <option value="c++">C++</option>
+        <option value="c">C</option>
+      </select>
+    </label>
+    <label>Standard <select id="std"></select></label>
+    <label>Target
+      <select id="target">
+        <option value="x86_64-linux-gnu">x86-64 Linux</option>
+        <option value="i686-linux-gnu">x86 Linux (32-bit)</option>
+        <option value="aarch64-linux-gnu">AArch64 Linux</option>
+        <option value="armv7-linux-gnueabihf">ARMv7 Linux</option>
+        <option value="riscv64-linux-gnu">RISC-V 64 Linux</option>
+        <option value="wasm32-unknown-unknown">wasm32</option>
+        <option value="x86_64-pc-windows-msvc">x86-64 Windows (MSVC)</option>
+        <option value="i686-pc-windows-msvc">x86 Windows (MSVC)</option>
+        <option value="arm64-apple-macos">ARM64 macOS</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="vtables" checked> vtables</label>
+    <label class="check"><input type="checkbox" id="expand"> expand system types</label>
+    <label class="grow">Flags <input id="flags" spellcheck="false" placeholder="-DN=4 -fms-extensions"></label>
+    <span id="status" role="status" aria-live="polite"></span>
+  </header>
+  <main>
+    <section id="editor" aria-label="Source"></section>
+    <section id="output" aria-label="Layouts"></section>
+  </main>
+  <div id="tip" role="tooltip" hidden></div>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

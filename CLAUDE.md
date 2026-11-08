@@ -1,6 +1,6 @@
 # lense
 
-CLI that prints C/C++ record layouts and vtable layouts, built on clang LibTooling, and as WebAssembly. A browser front end is planned; see @PLAN.md.
+CLI that prints C/C++ record layouts and vtable layouts, built on clang LibTooling, plus a browser front end running the same core as WebAssembly.
 
 ## Build and test
 
@@ -15,13 +15,14 @@ LENSE_UPDATE=1 ctest --test-dir build -R '\.(itanium|msvc|text)$'   # regenerate
 tests/fuzz/fuzz.py --lense build/lense --cxx "$LENSE_ORACLE_CXX" --advisory-cxx "$LENSE_ADVISORY_CXX" --static-cxx "$LENSE_STATIC_CXX" --iterations 1000
 ```
 
-WebAssembly (outside Nix; `nix build .#wasm` does all of this):
+WebAssembly (outside Nix; `nix build .#web` does all of this):
 
 ```
 emcmake cmake -G Ninja -S <llvm-project>/llvm -B build-wasm/llvm -C wasm/llvm-cache.cmake -DLLVM_NATIVE_TOOL_DIR=<llvm-tblgen dir>
 ninja -C build-wasm/llvm clangTooling clang-resource-headers
 emcmake cmake -G Ninja -S . -B build-wasm/lense -DCMAKE_BUILD_TYPE=MinSizeRel -DLLVM_DIR=$PWD/build-wasm/llvm/lib/cmake/llvm
 ninja -C build-wasm/lense && ctest --test-dir build-wasm/lense   # tests run build-wasm/lense/lense-node
+cd web && npm install && npm run dev        # LENSE_WASM_DIR defaults to ../build-wasm/lense/wasm
 ```
 
 ## Tests
@@ -47,3 +48,5 @@ ninja -C build-wasm/lense && ctest --test-dir build-wasm/lense   # tests run bui
 - Vtable address points belong to the sub-table holding the RTTI entry before them; a table with no functions has its address point at the next table's start.
 - Tests pin targets (`x86_64-linux-gnu`, `x86_64-pc-windows-msvc`) and avoid `#include`s so goldens are host-independent.
 - WebAssembly: `src/Wasm.cpp` is the browser entry (`lense_analyze`); `src/main.cpp` + `Run.cpp` also build as `lense.js` for Node so every test suite runs against wasm. Headers come from Emscripten's sysroot, staged by `wasm/stage-headers.cmake`, which patches libc++ `__config_site` from ABI v2 to v1 to match native targets.
+- Emscripten resolves the `.data` package against the page or worker location. The worker passes `locateFile` so it resolves next to `lense-web.js`; without it Vite's HTML fallback is loaded as the package and every header is empty.
+- Front end: TypeScript + Vite + CodeMirror 6; `web/src/render.ts` mirrors `src/Text.cpp` wording. Chart colours come from the dataviz reference palette, validated for colour-vision deficiency in both modes.

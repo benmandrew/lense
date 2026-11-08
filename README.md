@@ -14,6 +14,7 @@ nix develop          # shell with every dependency
 cmake -S . -B build -G Ninja && ninja -C build && ctest --test-dir build
 nix run . -- file.cpp
 nix build .#wasm     # WebAssembly build; runs the test suite against the Node.js build
+nix build .#web      # WebAssembly build plus browser front end; static site in result/
 ```
 
 Inside `nix develop` or `nix build`, CMake copies the libc and libc++ include flags from the Nix compiler wrapper in `$NIX_CC/nix-support`, so `#include <string>` resolves. Nix only sees files tracked by git. New files therefore need `git add` before `nix build`.
@@ -85,6 +86,26 @@ vtable for Derived  8 entries
 
 Base subobjects are shown at their *non-virtual size*. `Base` occupies 12 bytes here against a `sizeof` of 16, so the 4 bytes at offset 12 are padding that belongs to `Derived`. The `Other` vptr at offset 16 points at slot 7, inside the second address point of the same vtable.
 
+## In the browser
+
+The same core also runs in a browser. Clang 23's libraries are compiled to `wasm32` with *Emscripten* 6.0.9, without any LLVM back ends (`LLVM_TARGETS_TO_BUILD` is empty). `lense` is then compiled twice. `lense-web.js` is an ECMAScript module for browsers, and `lense.js` is the same command-line tool for Node.js, so the whole test suite runs against WebAssembly. All 33 tests pass there. The golden output is byte-identical to the native build.
+
+`nix build .#web` builds everything and leaves a static site in `result/`. Any static file server can host it, provided it serves `.wasm` files as `application/wasm`. For development, build the WebAssembly LLVM and `lense` with `emcmake` as listed in `CLAUDE.md`, ending with `ninja -C build-wasm/lense`. Then start the *Vite* development server:
+
+```sh
+cd web && npm install && npm run dev
+```
+
+`LENSE_WASM_DIR` points Vite at another build. Its default is `../build-wasm/lense/wasm`.
+
+The page has a *CodeMirror* editor on the left. On the right, each record gets a *byte map*, a member table and its vtables. The byte map shows 8 bytes per row. Bitfields are slivers inside a byte, padding is hatched, and colour marks the role: own member, inherited member, or `vptr`, `vbptr` and `vtordisp`. The member table uses the same wording as the text output. Hovering over a member or base highlights it in both the map and the table. A vptr's `-> vtable[slot]` link jumps to that slot.
+
+Clang's errors appear as editor diagnostics. An error inside a header shows on the `#include` line that pulled it in. The options cover language, standard, target, vtables, expansion of system types and extra clang flags. The whole state lives in the uniform resource locator (URL) hash, so a link reproduces the view. Analysis runs in a *Web Worker*, off the page's main thread.
+
+Sizes below are raw and after `brotli -q 11`. `lense-web.wasm` is 22.0 MB raw and 5.1 MB compressed, and 17.4 MB of it is code. The abstract syntax tree (AST) and constant evaluation take 5.4 MB, semantic analysis (Sema) 4.1 MB, clang's bytecode `constexpr` interpreter 1.4 MB and the driver 1.1 MB. `lense-web.data` holds 1,497 headers in 9.1 MB raw and 0.74 MB compressed: libc++ 6.2 MB, clang's resource headers 2.4 MB and the C library 0.5 MB. Staging leaves out clang's headers for targets the page does not offer (GPU offload, OpenCL, HLSL, PowerPC, s390, Hexagon, LoongArch, MIPS, z/OS), which saves 4.25 MB, and strips comments while keeping line numbers. Every standard header gives byte-identical output with and without that pruning. A first visit downloads about 5.9 MB with Brotli.
+
+Timings were measured in Chrome against a local server. Clang is ready and the sample is analysed about 0.4 s after navigation. The first analysis that includes `<string>` and `<map>` takes 1.15 s, and later edits take 2–70 ms.
+
 ## Testing
 
 `ctest --test-dir build` runs 33 tests across four layers. The Python scripts use only the standard library.
@@ -119,6 +140,8 @@ During development the fuzzer found three bugs, all now fixed. Address points of
 - Only records defined in the main file are listed.
 - Uninstantiated templates have no layout. Instantiate the specialisation you want, for example `template struct Box<int>;`.
 - Records with compile errors are skipped.
+- In the browser, the standard headers are Emscripten's libc++ on musl for every target. `std::` types therefore have libc++ layouts, so `std::string` is 24 bytes where GCC's libstdc++ makes it 32. `#include <string>` fails on Microsoft and Apple targets. Code without includes works on every target.
+- In the browser, `arm_neon.h`, `arm_sve.h` and `riscv_vector.h` are missing: clang generates them only when the ARM and RISC-V back ends are built, and the WebAssembly build has no back ends.
 - The oracle compiler must be clang 23, the layout engine `lense` reports on. GCC and Apple clang are *advisory*, so their disagreements are printed and saved without failing the run.
 
 They do disagree. `lense` describes upstream clang 23's layout, which can differ from the compiler a project ships with. A packed class with non-plain-old-data (non-POD) members, such as `struct __attribute__((packed)) T3 : T1 {...}` with a polymorphic `T1`, has size 96 and alignment 8 under clang 23. Apple clang 21 gives size 92 and alignment 1, and GCC 16 does not pack non-POD members either. A struct holding only `int : 1;` has size 1 and alignment 1 under clang, against 4 and 4 under GCC. To match an older clang, try passing `-- -fclang-abi-compat=<version>`.
@@ -132,7 +155,6 @@ They do disagree. `lense` describes upstream clang 23's layout, which can differ
 - `src/main.cpp` is the command-line interface.
 - `src/Wasm.cpp` is the browser entry point. `lense_analyze(code, options)` returns JSON.
 - `wasm/` holds the Emscripten CMake files: the LLVM cache file `llvm-cache.cmake` and the header staging.
-
-A browser front end that runs the same core compiled to WebAssembly is planned.
+- `web/` is the browser front end.
 
 Every layout `lense` prints is the one clang 23 computed for the chosen target. The tool only decides how much of it to show.

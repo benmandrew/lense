@@ -5,3 +5,5 @@ result-*
 compile_commands.json
 fuzz-failures/
 __pycache__/
+web/node_modules/
+web/dist/
