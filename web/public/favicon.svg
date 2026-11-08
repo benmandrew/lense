@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- The first 16 bytes of the Circle example, one cell per byte: vptr,
+       the inherited member id, tag, then three bytes of padding. -->
+  <rect width="32" height="32" rx="6" fill="#141414"/>
+  <rect x="3" y="3" width="5" height="5" rx="1" fill="#d37d2b"/>
+  <rect x="10" y="3" width="5" height="5" rx="1" fill="#d37d2b"/>
+  <rect x="17" y="3" width="5" height="5" rx="1" fill="#d37d2b"/>
+  <rect x="24" y="3" width="5" height="5" rx="1" fill="#d37d2b"/>
+  <rect x="3" y="10" width="5" height="5" rx="1" fill="#d37d2b"/>
+  <rect x="10" y="10" width="5" height="5" rx="1" fill="#d37d2b"/>
+  <rect x="17" y="10" width="5" height="5" rx="1" fill="#d37d2b"/>
+  <rect x="24" y="10" width="5" height="5" rx="1" fill="#d37d2b"/>
+  <rect x="3" y="17" width="5" height="5" rx="1" fill="#6da361"/>
+  <rect x="10" y="17" width="5" height="5" rx="1" fill="#6da361"/>
+  <rect x="17" y="17" width="5" height="5" rx="1" fill="#6da361"/>
+  <rect x="24" y="17" width="5" height="5" rx="1" fill="#6da361"/>
+  <rect x="3" y="24" width="5" height="5" rx="1" fill="#579dcd"/>
+  <rect x="10.5" y="24.5" width="4" height="4" rx="0.5" fill="#211f1c" stroke="#464444"/>
+  <rect x="17.5" y="24.5" width="4" height="4" rx="0.5" fill="#211f1c" stroke="#464444"/>
+  <rect x="24.5" y="24.5" width="4" height="4" rx="0.5" fill="#211f1c" stroke="#464444"/>
+</svg>
