@@ -10,7 +10,7 @@ Dependencies come from `flake.nix` (nixpkgs-unstable pinned in `flake.lock`). Ni
 nix build                                   # build + full ctest in the sandbox
 nix develop                                 # then:
 cmake -S . -B build -G Ninja && ninja -C build
-ctest --test-dir build                      # goldens, e2e, fuzz (36 tests)
+ctest --test-dir build                      # goldens, e2e, fuzz (39 tests)
 LENSE_UPDATE=1 ctest --test-dir build -R '\.(itanium|msvc|text)$'   # regenerate goldens, review the diff
 tests/fuzz/fuzz.py --lense build/lense --cxx "$LENSE_ORACLE_CXX" --advisory-cxx "$LENSE_ADVISORY_CXX" --static-cxx "$LENSE_STATIC_CXX" --iterations 1000
 ```
@@ -47,6 +47,10 @@ cd web && npm install && npm run dev        # LENSE_WASM_DIR defaults to ../buil
 - Function bodies outside the main file are skipped (`SkipFunctionBodies` + `Consumer::shouldSkipFunctionBody`): only main-file records are reported, and clang still parses constexpr and deduced-return bodies. Errors in skipped bodies go unreported. Main-file bodies are always parsed, for local classes.
 - LLVM already registers `--color`; reuse it via `llvm::WithColor` instead of defining another.
 - Vtable address points belong to the sub-table holding the RTTI entry before them; a table with no functions has its address point at the next table's start.
+- A node's `align` is what the member asks for (type alignment raised by `alignas` on it), not what packing leaves it. `unaligned` means gcd(offset, outermost record's align) < align, so a packed record's member at offset 0 is unaligned too.
+- Bitfield `memory_location` follows the language rule ([intro.memory]: a maximal run of adjacent nonzero-width bitfields), not clang CodeGen's access units, so lense does not link clangCodeGen (wasm size).
+- Field reordering estimates orders itself (every order up to 8 units, else heuristics), then lays the best out with clang on a synthetic copy of the record (same bases, attributes, a dummy virtual for an own vptr) and reports clang's size. No suggestion for unions or records with virtual bases; adjacent bitfields move as one unit; a flexible array stays last.
+- `--compare` runs clang twice; the second run appends `--target=`, which wins because clang takes the last one. Members are matched across targets by kind, role, type and name; padding by the member it follows.
 - Tests pin targets (`x86_64-linux-gnu`, `x86_64-pc-windows-msvc`) and avoid `#include`s so goldens are host-independent.
 - WebAssembly: `src/Wasm.cpp` is the browser entry (`lense_analyze`); `src/main.cpp` + `Run.cpp` also build as `lense.js` for Node so every test suite runs against wasm. Headers come from Emscripten's sysroot, staged by `wasm/stage-headers.cmake`, which patches libc++ `__config_site` from ABI v2 to v1 to match native targets.
 - Emscripten resolves the `.data` package against the page or worker location. The worker passes `locateFile` so it resolves next to `lense-web.js`; without it Vite's HTML fallback is loaded as the package and every header is empty.

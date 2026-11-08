@@ -2,6 +2,8 @@
   "target": "x86_64-pc-windows-msvc19.33.0",
   "abi": "microsoft",
   "pointer_size": 8,
+  "endian": "little",
+  "cache_line": 64,
   "records": [
     {
       "name": "A",
@@ -16,6 +18,15 @@
       "nv_size": 16,
       "nv_align": 8,
       "padding_bits": 32,
+      "align_source": {
+        "kind": "member",
+        "text": "vfptr"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 12,
@@ -28,6 +39,7 @@
           "offset": 0,
           "size": 8,
           "type": "A",
+          "align": 8,
           "points_to": {
             "table": "vftable for A",
             "slot": 1
@@ -38,7 +50,8 @@
           "offset": 8,
           "size": 4,
           "type": "int",
-          "name": "a"
+          "name": "a",
+          "align": 4
         },
         {
           "kind": "padding",
@@ -94,6 +107,15 @@
       "nv_size": 24,
       "nv_align": 8,
       "padding_bits": 64,
+      "align_source": {
+        "kind": "member",
+        "text": "vfptr"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 20,
@@ -110,6 +132,7 @@
           "offset": 0,
           "size": 8,
           "type": "B",
+          "align": 8,
           "points_to": {
             "table": "vftable for B",
             "slot": 1
@@ -119,14 +142,16 @@
           "kind": "vbptr",
           "offset": 8,
           "size": 8,
-          "type": "B"
+          "type": "B",
+          "align": 8
         },
         {
           "kind": "field",
           "offset": 16,
           "size": 4,
           "type": "int",
-          "name": "b"
+          "name": "b",
+          "align": 4
         },
         {
           "kind": "padding",
@@ -140,12 +165,14 @@
           "size": 16,
           "tag": "struct",
           "type": "A",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 24,
               "size": 8,
               "type": "A",
+              "align": 8,
               "points_to": {
                 "table": "vftable for A in B",
                 "slot": 1
@@ -156,7 +183,8 @@
               "offset": 32,
               "size": 4,
               "type": "int",
-              "name": "a"
+              "name": "a",
+              "align": 4
             },
             {
               "kind": "padding",
@@ -241,6 +269,15 @@
       "nv_size": 16,
       "nv_align": 8,
       "padding_bits": 64,
+      "align_source": {
+        "kind": "member",
+        "text": "vbptr"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 12,
@@ -256,14 +293,16 @@
           "kind": "vbptr",
           "offset": 0,
           "size": 8,
-          "type": "C"
+          "type": "C",
+          "align": 8
         },
         {
           "kind": "field",
           "offset": 8,
           "size": 4,
           "type": "int",
-          "name": "c"
+          "name": "c",
+          "align": 4
         },
         {
           "kind": "padding",
@@ -277,12 +316,14 @@
           "size": 16,
           "tag": "struct",
           "type": "A",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 16,
               "size": 8,
               "type": "A",
+              "align": 8,
               "points_to": {
                 "table": "vftable for A in C",
                 "slot": 1
@@ -293,7 +334,8 @@
               "offset": 24,
               "size": 4,
               "type": "int",
-              "name": "a"
+              "name": "a",
+              "align": 4
             },
             {
               "kind": "padding",
@@ -360,6 +402,15 @@
       "nv_size": 48,
       "nv_align": 8,
       "padding_bits": 128,
+      "align_source": {
+        "kind": "member",
+        "text": "base B"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 20,
@@ -386,12 +437,14 @@
           "size": 24,
           "tag": "struct",
           "type": "B",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 0,
               "size": 8,
               "type": "B",
+              "align": 8,
               "points_to": {
                 "table": "vftable for B in D",
                 "slot": 1
@@ -401,14 +454,16 @@
               "kind": "vbptr",
               "offset": 8,
               "size": 8,
-              "type": "B"
+              "type": "B",
+              "align": 8
             },
             {
               "kind": "field",
               "offset": 16,
               "size": 4,
               "type": "int",
-              "name": "b"
+              "name": "b",
+              "align": 4
             },
             {
               "kind": "padding",
@@ -424,19 +479,22 @@
           "size": 16,
           "tag": "struct",
           "type": "C",
+          "align": 8,
           "members": [
             {
               "kind": "vbptr",
               "offset": 24,
               "size": 8,
-              "type": "C"
+              "type": "C",
+              "align": 8
             },
             {
               "kind": "field",
               "offset": 32,
               "size": 4,
               "type": "int",
-              "name": "c"
+              "name": "c",
+              "align": 4
             },
             {
               "kind": "padding",
@@ -450,7 +508,8 @@
           "offset": 40,
           "size": 4,
           "type": "int",
-          "name": "d"
+          "name": "d",
+          "align": 4
         },
         {
           "kind": "padding",
@@ -464,12 +523,14 @@
           "size": 16,
           "tag": "struct",
           "type": "A",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 48,
               "size": 8,
               "type": "A",
+              "align": 8,
               "points_to": {
                 "table": "vftable for A in C in D",
                 "slot": 1
@@ -480,7 +541,8 @@
               "offset": 56,
               "size": 4,
               "type": "int",
-              "name": "a"
+              "name": "a",
+              "align": 4
             },
             {
               "kind": "padding",

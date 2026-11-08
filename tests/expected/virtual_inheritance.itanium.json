@@ -2,6 +2,8 @@
   "target": "x86_64-unknown-linux-gnu",
   "abi": "itanium",
   "pointer_size": 8,
+  "endian": "little",
+  "cache_line": 64,
   "records": [
     {
       "name": "A",
@@ -16,6 +18,15 @@
       "nv_size": 12,
       "nv_align": 8,
       "padding_bits": 32,
+      "align_source": {
+        "kind": "member",
+        "text": "vptr"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 12,
@@ -28,6 +39,7 @@
           "offset": 0,
           "size": 8,
           "type": "A",
+          "align": 8,
           "points_to": {
             "table": "vtable for A",
             "slot": 2
@@ -38,7 +50,8 @@
           "offset": 8,
           "size": 4,
           "type": "int",
-          "name": "a"
+          "name": "a",
+          "align": 4
         },
         {
           "kind": "padding",
@@ -106,6 +119,15 @@
       "nv_size": 12,
       "nv_align": 8,
       "padding_bits": 64,
+      "align_source": {
+        "kind": "member",
+        "text": "vptr"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 12,
@@ -122,6 +144,7 @@
           "offset": 0,
           "size": 8,
           "type": "B",
+          "align": 8,
           "points_to": {
             "table": "vtable for B",
             "slot": 3
@@ -132,7 +155,8 @@
           "offset": 8,
           "size": 4,
           "type": "int",
-          "name": "b"
+          "name": "b",
+          "align": 4
         },
         {
           "kind": "padding",
@@ -146,12 +170,14 @@
           "size": 12,
           "tag": "struct",
           "type": "A",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 16,
               "size": 8,
               "type": "A",
+              "align": 8,
               "points_to": {
                 "table": "vtable for B",
                 "slot": 10
@@ -162,7 +188,8 @@
               "offset": 24,
               "size": 4,
               "type": "int",
-              "name": "a"
+              "name": "a",
+              "align": 4
             }
           ]
         },
@@ -292,6 +319,15 @@
       "nv_size": 12,
       "nv_align": 8,
       "padding_bits": 64,
+      "align_source": {
+        "kind": "member",
+        "text": "vptr"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 12,
@@ -308,6 +344,7 @@
           "offset": 0,
           "size": 8,
           "type": "C",
+          "align": 8,
           "points_to": {
             "table": "vtable for C",
             "slot": 3
@@ -318,7 +355,8 @@
           "offset": 8,
           "size": 4,
           "type": "int",
-          "name": "c"
+          "name": "c",
+          "align": 4
         },
         {
           "kind": "padding",
@@ -332,12 +370,14 @@
           "size": 12,
           "tag": "struct",
           "type": "A",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 16,
               "size": 8,
               "type": "A",
+              "align": 8,
               "points_to": {
                 "table": "vtable for C",
                 "slot": 10
@@ -348,7 +388,8 @@
               "offset": 24,
               "size": 4,
               "type": "int",
-              "name": "a"
+              "name": "a",
+              "align": 4
             }
           ]
         },
@@ -485,6 +526,15 @@
       "nv_size": 32,
       "nv_align": 8,
       "padding_bits": 64,
+      "align_source": {
+        "kind": "member",
+        "text": "base B"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 12,
@@ -503,12 +553,14 @@
           "size": 12,
           "tag": "struct",
           "type": "B",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 0,
               "size": 8,
               "type": "B",
+              "align": 8,
               "points_to": {
                 "table": "vtable for D",
                 "slot": 3
@@ -519,7 +571,8 @@
               "offset": 8,
               "size": 4,
               "type": "int",
-              "name": "b"
+              "name": "b",
+              "align": 4
             }
           ]
         },
@@ -535,12 +588,14 @@
           "size": 12,
           "tag": "struct",
           "type": "C",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 16,
               "size": 8,
               "type": "C",
+              "align": 8,
               "points_to": {
                 "table": "vtable for D",
                 "slot": 10
@@ -551,7 +606,8 @@
               "offset": 24,
               "size": 4,
               "type": "int",
-              "name": "c"
+              "name": "c",
+              "align": 4
             }
           ]
         },
@@ -560,7 +616,8 @@
           "offset": 28,
           "size": 4,
           "type": "int",
-          "name": "d"
+          "name": "d",
+          "align": 4
         },
         {
           "kind": "record",
@@ -569,12 +626,14 @@
           "size": 12,
           "tag": "struct",
           "type": "A",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 32,
               "size": 8,
               "type": "A",
+              "align": 8,
               "points_to": {
                 "table": "vtable for D",
                 "slot": 17
@@ -585,7 +644,8 @@
               "offset": 40,
               "size": 4,
               "type": "int",
-              "name": "a"
+              "name": "a",
+              "align": 4
             }
           ]
         },

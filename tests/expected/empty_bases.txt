@@ -1,29 +1,35 @@
 struct Empty  size 1, align 1, padding 1 byte
-  offset  size
-       0     1  padding
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1         padding
 
 struct Tag  size 1, align 1, padding 1 byte
-  offset  size
-       0     1  padding
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1         padding
 
-struct WithEmptyBase  size 4, align 4
-  offset  size
-       0     0  Empty  base (empty)
-       0     4  int x
+struct WithEmptyBase  size 4, align 4 from x
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
+  offset  size  align
+       0     0      1  Empty  base (empty)
+       0     4      4  int x
 
 struct TwoEmpty  size 1, align 1
-  offset  size
-       0     0  Empty  base (empty)
-       0     0  Tag  base (empty)
-       0     1  char c
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
+  offset  size  align
+       0     0      1  Empty  base (empty)
+       0     0      1  Tag  base (empty)
+       0     1      1  char c
 
-struct NoUnique  size 4, align 4
-  offset  size
-       0     0  Empty e (empty)
-       0     4  int x
+struct NoUnique  size 4, align 4 from x
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
+  offset  size  align
+       0     0      1  Empty e (empty)
+       0     4      4  int x
 
-struct Holder  size 8, align 4, padding 3 bytes
-  offset  size
-       0     1  Empty e (empty)
-       1     3  padding
-       4     4  int x
+struct Holder  size 8, align 4 from x, padding 3 bytes
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1      1  Empty e (empty)
+       1     3         padding
+       4     4      4  int x

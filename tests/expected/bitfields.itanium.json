@@ -2,6 +2,8 @@
   "target": "x86_64-unknown-linux-gnu",
   "abi": "itanium",
   "pointer_size": 8,
+  "endian": "little",
+  "cache_line": 64,
   "records": [
     {
       "name": "Flags",
@@ -16,6 +18,15 @@
       "nv_size": 16,
       "nv_align": 8,
       "padding_bits": 74,
+      "align_source": {
+        "kind": "member",
+        "text": "wide"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 5,
@@ -34,7 +45,8 @@
           "bit_offset": 0,
           "bit_size": 1,
           "type": "unsigned int",
-          "name": "ready"
+          "name": "ready",
+          "memory_location": 1
         },
         {
           "kind": "bitfield",
@@ -42,14 +54,16 @@
           "bit_offset": 1,
           "bit_size": 3,
           "type": "unsigned int",
-          "name": "mode"
+          "name": "mode",
+          "memory_location": 1
         },
         {
           "kind": "bitfield",
           "offset": 0,
           "bit_offset": 4,
           "bit_size": 2,
-          "type": "unsigned int"
+          "type": "unsigned int",
+          "memory_location": 1
         },
         {
           "kind": "bitfield",
@@ -57,7 +71,8 @@
           "bit_offset": 6,
           "bit_size": 40,
           "type": "unsigned long long",
-          "name": "wide"
+          "name": "wide",
+          "memory_location": 1
         },
         {
           "kind": "padding",
@@ -77,7 +92,8 @@
           "offset": 8,
           "size": 1,
           "type": "char",
-          "name": "tail"
+          "name": "tail",
+          "align": 1
         },
         {
           "kind": "padding",

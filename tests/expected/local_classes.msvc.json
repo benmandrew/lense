@@ -2,6 +2,8 @@
   "target": "x86_64-pc-windows-msvc19.33.0",
   "abi": "microsoft",
   "pointer_size": 8,
+  "endian": "little",
+  "cache_line": 64,
   "records": [
     {
       "name": "S",
@@ -16,6 +18,15 @@
       "nv_size": 4,
       "nv_align": 4,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "b"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -23,7 +34,8 @@
           "offset": 0,
           "size": 4,
           "type": "long",
-          "name": "b"
+          "name": "b",
+          "align": 4
         }
       ],
       "vtables": []
@@ -41,6 +53,15 @@
       "nv_size": 4,
       "nv_align": 4,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "a"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -48,7 +69,8 @@
           "offset": 0,
           "size": 4,
           "type": "int",
-          "name": "a"
+          "name": "a",
+          "align": 4
         }
       ],
       "vtables": []
@@ -66,6 +88,15 @@
       "nv_size": 8,
       "nv_align": 8,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "vfptr"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [],
       "members": [
         {
@@ -73,6 +104,7 @@
           "offset": 0,
           "size": 8,
           "type": "T0",
+          "align": 8,
           "points_to": {
             "table": "vftable for T0",
             "slot": 1
@@ -122,6 +154,14 @@
       "nv_size": 1,
       "nv_align": 1,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "none"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -129,7 +169,8 @@
           "offset": 0,
           "size": 1,
           "type": "char",
-          "name": "c"
+          "name": "c",
+          "align": 1
         }
       ],
       "vtables": []
@@ -147,6 +188,14 @@
       "nv_size": 1,
       "nv_align": 1,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "none"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -157,13 +206,15 @@
           "tag": "struct",
           "type": "struct In",
           "name": "in",
+          "align": 1,
           "members": [
             {
               "kind": "field",
               "offset": 0,
               "size": 1,
               "type": "char[1]",
-              "name": "c"
+              "name": "c",
+              "align": 1
             }
           ]
         }
@@ -183,6 +234,14 @@
       "nv_size": 1,
       "nv_align": 1,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "none"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -190,7 +249,8 @@
           "offset": 0,
           "size": 1,
           "type": "char[1]",
-          "name": "c"
+          "name": "c",
+          "align": 1
         }
       ],
       "vtables": []
@@ -208,6 +268,14 @@
       "nv_size": 2,
       "nv_align": 1,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "none"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -218,13 +286,15 @@
           "tag": "struct",
           "type": "struct In",
           "name": "in",
+          "align": 1,
           "members": [
             {
               "kind": "field",
               "offset": 0,
               "size": 2,
               "type": "char[2]",
-              "name": "c"
+              "name": "c",
+              "align": 1
             }
           ]
         }
@@ -244,6 +314,14 @@
       "nv_size": 2,
       "nv_align": 1,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "none"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -251,7 +329,8 @@
           "offset": 0,
           "size": 2,
           "type": "char[2]",
-          "name": "c"
+          "name": "c",
+          "align": 1
         }
       ],
       "vtables": []
@@ -269,6 +348,15 @@
       "nv_size": 2,
       "nv_align": 2,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "s"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -276,7 +364,8 @@
           "offset": 0,
           "size": 2,
           "type": "short",
-          "name": "s"
+          "name": "s",
+          "align": 2
         }
       ],
       "vtables": []
@@ -294,6 +383,15 @@
       "nv_size": 4,
       "nv_align": 4,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "i"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -301,7 +399,8 @@
           "offset": 0,
           "size": 4,
           "type": "int",
-          "name": "i"
+          "name": "i",
+          "align": 4
         }
       ],
       "vtables": []
@@ -319,6 +418,14 @@
       "nv_size": 0,
       "nv_align": 1,
       "padding_bits": 8,
+      "align_source": {
+        "kind": "none"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 0,
@@ -347,6 +454,14 @@
       "nv_size": 0,
       "nv_align": 1,
       "padding_bits": 8,
+      "align_source": {
+        "kind": "none"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 0,
@@ -375,6 +490,15 @@
       "nv_size": 4,
       "nv_align": 4,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "z"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -382,7 +506,8 @@
           "offset": 0,
           "size": 4,
           "type": "int",
-          "name": "z"
+          "name": "z",
+          "align": 4
         }
       ],
       "vtables": []

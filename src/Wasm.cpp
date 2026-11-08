@@ -34,9 +34,12 @@ char *error(const std::string &message) {
 // `options` is a JSON object, every field optional:
 //   {"lang": "c" | "c++", "target": "<triple>", "vtables": true,
 //    "expandSystem": false, "records": ["<name>", ...],
-//    "args": ["<clang argument>", ...]}
+//    "args": ["<clang argument>", ...], "cacheLine": 64, "reorder": true,
+//    "compare": "<triple>"}
 // Returns {"ok": <no clang errors>, "report": <as lense --json>} or
-// {"error": "<message>"}, as a string the caller must free().
+// {"error": "<message>"}, as a string the caller must free(). With
+// "compare", the layout for that target is in "compare", built without
+// vtables, as lense --compare does.
 extern "C" EMSCRIPTEN_KEEPALIVE char *lense_analyze(const char *code,
                                                     const char *options) {
   llvm::Expected<json::Value> parsed = json::parse(options);
@@ -52,6 +55,14 @@ extern "C" EMSCRIPTEN_KEEPALIVE char *lense_analyze(const char *code,
     return error("lang must be c or c++");
   opts.analyze.vtables = o->getBoolean("vtables").value_or(true);
   opts.analyze.expandSystem = o->getBoolean("expandSystem").value_or(false);
+  opts.analyze.reorder = o->getBoolean("reorder").value_or(true);
+  int64_t cacheLine = o->getInteger("cacheLine").value_or(64);
+  if (cacheLine < 0 || cacheLine > (1 << 20) || (cacheLine & (cacheLine - 1)))
+    return error("cacheLine must be a power of two or 0");
+  opts.analyze.cacheLine = unsigned(cacheLine);
+  std::string compare = o->getString("compare").value_or("").str();
+  if (!compare.empty())
+    opts.analyze.vtables = false;
   if (const json::Array *records = o->getArray("records"))
     for (const json::Value &r : *records)
       if (auto name = r.getAsString())
@@ -63,13 +74,21 @@ extern "C" EMSCRIPTEN_KEEPALIVE char *lense_analyze(const char *code,
       if (auto arg = a.getAsString())
         opts.clangArgs.push_back(arg->str());
 
-  lense::Report report;
-  bool ok = lense::run(code, lang == "c" ? "input.c" : "input.cpp", opts,
-                       report);
+  const char *file = lang == "c" ? "input.c" : "input.cpp";
+  lense::Report report, other;
+  bool ok = lense::run(code, file, opts, report);
+  if (!compare.empty()) {
+    opts.clangArgs.push_back("--target=" + compare);
+    ok &= lense::run(code, file, opts, other);
+  }
   std::string s;
   llvm::raw_string_ostream os(s);
   os << "{\"ok\":" << (ok ? "true" : "false") << ",\"report\":";
   lense::printJson(os, report);
+  if (!compare.empty()) {
+    os << ",\"compare\":";
+    lense::printJson(os, other);
+  }
   os << "}";
   return copy(s);
 }

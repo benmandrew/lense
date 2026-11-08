@@ -44,6 +44,10 @@ interface Saved {
   lang: Options['lang'];
   std: string;
   target: string;
+  /** A second target to compare with; empty is off. */
+  compare: string;
+  /** Bytes; 0 is off. */
+  cacheLine: number;
   vtables: boolean;
   expand: boolean;
   flags: string;
@@ -53,6 +57,8 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const langBox = $<HTMLSelectElement>('lang');
 const stdBox = $<HTMLSelectElement>('std');
 const targetBox = $<HTMLSelectElement>('target');
+const compareBox = $<HTMLSelectElement>('compare');
+const cacheLineBox = $<HTMLSelectElement>('cacheline');
 const vtablesBox = $<HTMLInputElement>('vtables');
 const expandBox = $<HTMLInputElement>('expand');
 const flagsBox = $<HTMLInputElement>('flags');
@@ -95,6 +101,8 @@ function current(): Saved {
     lang: langBox.value as Options['lang'],
     std: stdBox.value,
     target: targetBox.value,
+    compare: compareBox.value,
+    cacheLine: Number(cacheLineBox.value),
     vtables: vtablesBox.checked,
     expand: expandBox.checked,
     flags: flagsBox.value,
@@ -104,7 +112,10 @@ function current(): Saved {
 function options(s: Saved): Options {
   const args = s.flags.split(/\s+/).filter(Boolean);
   if (s.std) args.unshift(`-std=${s.std}`);
-  return { lang: s.lang, target: s.target, vtables: s.vtables, expandSystem: s.expand, args };
+  return {
+    lang: s.lang, target: s.target, vtables: s.vtables, expandSystem: s.expand, args,
+    cacheLine: s.cacheLine, ...(s.compare ? { compare: s.compare } : {}),
+  };
 }
 
 // --- Diagnostics ----------------------------------------------------------
@@ -255,7 +266,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
             textContent: 'clang reported errors. The records it could lay out are below.',
           }));
         }
-        render(output, r.report, { locate });
+        render(output, r.report, { locate }, r.compare);
         status(`${r.ok ? '' : 'errors · '}${Math.round(m.ms)} ms`, !r.ok);
       }
       if (m.stderr.trim()) {
@@ -274,9 +285,10 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
 
 async function start() {
   const saved = (location.hash.length > 1 && (await unpack(location.hash.slice(1)))) || null;
-  const s: Saved = saved ?? {
-    code: SAMPLE, lang: 'c++', std: '', target: 'x86_64-linux-gnu',
-    vtables: true, expand: false, flags: '',
+  // Links saved before an option existed leave it out.
+  const s: Saved = {
+    code: SAMPLE, lang: 'c++', std: '', target: 'x86_64-linux-gnu', compare: '', cacheLine: 64,
+    vtables: true, expand: false, flags: '', ...saved,
   };
   view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: s.code } });
   clearTimeout(timer);
@@ -284,7 +296,19 @@ async function start() {
   fillStandards(s.lang, s.std);
   targetBox.value = s.target;
   if (targetBox.value !== s.target) targetBox.append(new Option(s.target, s.target, true, true));
+  compareBox.append(...[...targetBox.options].map((o) => new Option(o.text, o.value)));
+  compareBox.value = s.compare;
+  if (compareBox.value !== s.compare) compareBox.append(new Option(s.compare, s.compare, true, true));
+  cacheLineBox.value = String(s.cacheLine);
+  if (cacheLineBox.value !== String(s.cacheLine))
+    cacheLineBox.append(new Option(`${s.cacheLine} bytes`, String(s.cacheLine), true, true));
   vtablesBox.checked = s.vtables;
+  // lense --compare leaves vtables out.
+  const syncVtables = () => {
+    vtablesBox.disabled = !!compareBox.value;
+    vtablesBox.parentElement!.title = compareBox.value ? 'Not shown when comparing targets' : '';
+  };
+  syncVtables();
   expandBox.checked = s.expand;
   flagsBox.value = s.flags;
 
@@ -292,7 +316,11 @@ async function start() {
     fillStandards(langBox.value as Options['lang'], '');
     analyze();
   };
-  for (const box of [stdBox, targetBox, vtablesBox, expandBox]) box.onchange = analyze;
+  for (const box of [stdBox, targetBox, cacheLineBox, vtablesBox, expandBox]) box.onchange = analyze;
+  compareBox.onchange = () => {
+    syncVtables();
+    analyze();
+  };
   flagsBox.oninput = () => {
     clearTimeout(timer);
     timer = setTimeout(analyze, 400);

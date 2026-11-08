@@ -1,0 +1,99 @@
+struct ByMember  size 16, align 8 from d, padding 7 bytes
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1      1  char c
+       1     7         padding
+       8     8      8  double d
+
+struct ByAttribute  size 16, align 16 from alignas(16), padding 15 bytes
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1      1  char c
+       1    15         padding
+
+struct ByGnuAttribute  size 32, align 32 from __attribute__((aligned(32))), padding 28 bytes
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     4      4  int i
+       4    28         padding
+
+struct Packed  size 5, align 1 from __attribute__((packed))
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
+  offset  size  align
+       0     1      1  char c
+       1     4      4  int i  (unaligned)
+
+struct Pack2  size 10, align 2 from #pragma pack(2), padding 1 byte
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1      1  char c
+       1     1         padding
+       2     8      8  double d  (unaligned)
+
+struct Packed1  size 4, align 1 from __attribute__((packed))
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
+  offset  size  align
+       0     4      4  int i  (unaligned)
+
+struct HoldsPacked  size 5, align 1
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
+  offset  size  align
+       0     1      1  char c
+       1     4      1  Packed1 p
+       1     4      4    int i  (unaligned)
+
+struct Bits  size 8, align 4 from a, padding 5 bytes, little-endian
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0    3b         unsigned int a : 3  location 1
+     0:3    5b         unsigned int b : 5  location 1
+       1     1      1  char sep
+       2    4b         unsigned int c : 4  location 2
+     2:4   12b         padding
+       4    0b         unsigned int (unnamed) : 0
+       4    4b         unsigned int d : 4  location 3
+     4:4   28b         padding
+
+struct Big  size 88, align 8 from body, padding 11 bytes
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1      1  char head
+       1     7         padding
+       8    72      8  long long[9] body  (crosses cache line)
+                       --- cache line 1 (byte 64) ---
+      80     4      4  int tail
+      84     4         padding
+  reordering the fields saves 8 bytes (size 80): head, tail, body
+
+struct Shuffled  size 32, align 8 from b, padding 16 bytes
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1      1  char a
+       1     7         padding
+       8     8      8  double b
+      16     1      1  char c
+      17     3         padding
+      20     4      4  int d
+      24     2      2  short e
+      26     6         padding
+  reordering the fields saves 16 bytes (size 16): b, a, c, e, d
+
+struct Tight  size 16, align 8 from b
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     8      8  double b
+       8     4      4  int d
+      12     2      2  short e
+      14     1      1  char a
+      15     1      1  char c
+
+struct Flexible  size 24, align 8 from v, padding 11 bytes
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1      1  char c
+       1     7         padding
+       8     8      8  long long v
+      16     4      4  int n
+      20     0      1  char[] data
+      20     4         padding
+  reordering the fields saves 8 bytes (size 16): c, n, v, data

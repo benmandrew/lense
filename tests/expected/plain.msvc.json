@@ -2,6 +2,8 @@
   "target": "x86_64-pc-windows-msvc19.33.0",
   "abi": "microsoft",
   "pointer_size": 8,
+  "endian": "little",
+  "cache_line": 64,
   "records": [
     {
       "name": "node",
@@ -16,6 +18,10 @@
       "nv_size": 16,
       "nv_align": 8,
       "padding_bits": 24,
+      "align_source": {
+        "kind": "member",
+        "text": "next"
+      },
       "holes": [
         {
           "offset": 9,
@@ -28,14 +34,16 @@
           "offset": 0,
           "size": 8,
           "type": "struct node *",
-          "name": "next"
+          "name": "next",
+          "align": 8
         },
         {
           "kind": "field",
           "offset": 8,
           "size": 1,
           "type": "char",
-          "name": "tag"
+          "name": "tag",
+          "align": 1
         },
         {
           "kind": "padding",
@@ -47,7 +55,8 @@
           "offset": 12,
           "size": 4,
           "type": "int",
-          "name": "value"
+          "name": "value",
+          "align": 4
         }
       ],
       "vtables": []
@@ -65,6 +74,23 @@
       "nv_size": 24,
       "nv_align": 8,
       "padding_bits": 112,
+      "align_source": {
+        "kind": "member",
+        "text": "b"
+      },
+      "reorder": {
+        "size": 16,
+        "order": [
+          0,
+          2,
+          1
+        ],
+        "fields": [
+          "a",
+          "c",
+          "b"
+        ]
+      },
       "holes": [
         {
           "offset": 1,
@@ -81,7 +107,8 @@
           "offset": 0,
           "size": 1,
           "type": "char",
-          "name": "a"
+          "name": "a",
+          "align": 1
         },
         {
           "kind": "padding",
@@ -93,14 +120,16 @@
           "offset": 8,
           "size": 8,
           "type": "double",
-          "name": "b"
+          "name": "b",
+          "align": 8
         },
         {
           "kind": "field",
           "offset": 16,
           "size": 1,
           "type": "char",
-          "name": "c"
+          "name": "c",
+          "align": 1
         },
         {
           "kind": "padding",
@@ -123,6 +152,10 @@
       "nv_size": 4,
       "nv_align": 4,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "len"
+      },
       "holes": [],
       "members": [
         {
@@ -130,14 +163,16 @@
           "offset": 0,
           "size": 4,
           "type": "int",
-          "name": "len"
+          "name": "len",
+          "align": 4
         },
         {
           "kind": "field",
           "offset": 4,
           "size": 0,
           "type": "char[]",
-          "name": "data"
+          "name": "data",
+          "align": 1
         }
       ],
       "vtables": []

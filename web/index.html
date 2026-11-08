@@ -29,6 +29,17 @@
         <option value="arm64-apple-macos">ARM64 macOS</option>
       </select>
     </label>
+    <label>Compare with
+      <select id="compare"><option value="">off</option></select>
+    </label>
+    <label>Cache line
+      <select id="cacheline">
+        <option value="64">64 bytes</option>
+        <option value="0">off</option>
+        <option value="32">32 bytes</option>
+        <option value="128">128 bytes</option>
+      </select>
+    </label>
     <label class="check"><input type="checkbox" id="vtables" checked> vtables</label>
     <label class="check"><input type="checkbox" id="expand"> expand system types</label>
     <label class="grow">Flags <input id="flags" spellcheck="false" placeholder="-DN=4 -fms-extensions"></label>

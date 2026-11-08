@@ -14,6 +14,10 @@ struct AnalyzeOptions {
   bool expandSystem = false;
   // Copy each record's definition into Record::source.
   bool source = false;
+  // Mark leaves that cross a boundary of this many bytes. 0 turns it off.
+  unsigned cacheLine = 64;
+  // Look for a field order that needs less padding.
+  bool reorder = true;
   // Qualified names to report. Empty means every record in the main file.
   std::vector<std::string> records;
 };

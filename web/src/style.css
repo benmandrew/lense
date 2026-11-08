@@ -1,5 +1,7 @@
 /* Colours follow the dataviz reference palette. The three fills (blue, aqua,
-   orange) pass the colour-vision checks as a set in both modes. */
+   orange) pass the colour-vision checks as a set in both modes. Warning and
+   good come from its fixed status palette; each is paired with a label, so
+   colour never carries the meaning alone. */
 :root {
   color-scheme: light;
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -22,6 +24,9 @@
   --pad-bg: #f0efec;
   --pad-ink: #c3c2b7;
   --critical: #c8302f;
+  --warning: #fab219;
+  --good: #0ca30c;
+  --good-ink: #006300;
   --syn-keyword: #5a3fc0;
   --syn-type: #0b6e99;
   --syn-string: #9a4a00;
@@ -50,6 +55,7 @@
     --pad-bg: #262624;
     --pad-ink: #4a4a46;
     --critical: #e66767;
+    --good-ink: #0ca30c;
     --syn-keyword: #b3a9f5;
     --syn-type: #6cb6e6;
     --syn-string: #e3a36b;
@@ -97,6 +103,7 @@ body {
   padding: 3px 6px;
 }
 
+.bar label:has(input:disabled) { color: var(--muted); }
 .bar .grow { flex: 1 1 180px; }
 .bar .grow input { flex: 1; min-width: 0; font-family: var(--mono); }
 
@@ -171,6 +178,28 @@ main {
 }
 .card h2 .name:hover { text-decoration: underline; }
 .summary { margin: 2px 0 12px; color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.summary .src { font: 12.5px var(--mono); color: var(--ink); }
+
+.traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  margin: -8px 0 12px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.traits code { font: 11.5px var(--mono); }
+.traits .no { color: var(--muted); }
+
+.reorder {
+  margin: 12px 0 0;
+  padding: 4px 12px;
+  border-left: 3px solid var(--good);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.reorder .saves { color: var(--good-ink); font-weight: 600; }
+.reorder code { font: 12.5px var(--mono); color: var(--ink); }
 
 .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 8px; font-size: 12px; color: var(--ink-2); }
 .legend > span { display: inline-flex; align-items: center; }
@@ -207,6 +236,7 @@ td .sw:not([class*="cat-"]) { visibility: hidden; }
 .bytemap .marks { display: grid; grid-template-columns: repeat(var(--bytes), minmax(0, 1fr)); color: var(--muted); }
 .bytemap .marks span { padding-left: 3px; }
 .bytemap .gap .fold { padding: 2px 4px; color: var(--ink-2); }
+.bytemap .row.cacheline { padding-top: 2px; border-top: 1px dashed var(--axis); }
 
 .bytemap .lanes {
   display: grid;
@@ -236,6 +266,7 @@ td .sw:not([class*="cat-"]) { visibility: hidden; }
 .card.hovering .seg:not(.hl) { opacity: 0.3; }
 .seg.hl { box-shadow: 0 0 0 1px var(--surface), 0 0 0 2.5px var(--ink); }
 
+
 /* --- Member and vtable tables ------------------------------------------- */
 
 table { border-collapse: collapse; font: 12.5px/1.6 var(--mono); }
@@ -246,6 +277,14 @@ td.num { color: var(--ink-2); }
 td.desc { white-space: pre-wrap; }
 .members tr.hl td { background: var(--hl-bg); }
 .members tbody tr:hover td { background: var(--hl-bg); }
+.members tr.cacheline td {
+  padding-top: 1px;
+  border-top: 1px dashed var(--axis);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.members tbody tr.cacheline:hover td { background: none; }
 
 .type { color: var(--syn-type); }
 .base { font-weight: 600; }
@@ -278,7 +317,34 @@ td.desc { white-space: pre-wrap; }
   font-size: 11px;
   line-height: 1.5;
 }
-.chip.pure { color: var(--critical); border-color: currentColor; }
+.chip.pure, .chip.bad { color: var(--critical); border-color: currentColor; }
+.chip.warn {
+  color: var(--ink-2);
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+}
+
+/* --- Comparing two targets ---------------------------------------------- */
+
+.sides {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0 12px;
+  margin: 4px 0 12px;
+}
+.sides .target { font: 12.5px/1.6 var(--mono); }
+.sides .summary { margin: 0; }
+.maplabel { margin: 0 0 4px; font: 11px var(--mono); color: var(--ink-2); }
+
+.compare th.group { text-align: right; padding-right: 1.5em; color: var(--ink-2); white-space: nowrap; }
+.compare th.group + th.group, .compare .split { border-left: 1px solid var(--grid); padding-left: 1em; }
+.compare .mark { width: 1%; padding-right: 0.5em; text-align: center; }
+.compare tr.changed td.mark { color: var(--ink); font-weight: 600; }
+.compare tr.changed td.diff {
+  color: var(--ink);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+}
 
 #tip {
   position: fixed;

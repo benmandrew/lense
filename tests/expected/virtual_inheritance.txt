@@ -1,8 +1,9 @@
-struct A  size 16, align 8, data size 12, padding 4 bytes
-  offset  size
-       0     8  vptr  A  -> vtable for A[2]
-       8     4  int a
-      12     4  padding
+struct A  size 16, align 8 from vptr, data size 12, padding 4 bytes
+  is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
+  offset  size  align
+       0     8      8  vptr  A  -> vtable for A[2]
+       8     4      4  int a
+      12     4         padding
 
 vtable for A  5 entries
    0  offset_to_top 0
@@ -12,15 +13,16 @@ vtable for A  5 entries
    3  A::~A() [deleting]
    4  A *A::clone() const
 
-struct B  size 32, align 8, data size 28, padding 8 bytes
-  offset  size
-       0     8  vptr  B  -> vtable for B[3]
-       8     4  int b
-      12     4  padding
-      16    12  A  virtual base
-      16     8    vptr  A  -> vtable for B[10]
-      24     4    int a
-      28     4  padding
+struct B  size 32, align 8 from vptr, data size 28, non-virtual size 12, padding 8 bytes
+  is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
+  offset  size  align
+       0     8      8  vptr  B  -> vtable for B[3]
+       8     4      4  int b
+      12     4         padding
+      16    12      8  A  virtual base
+      16     8      8    vptr  A  -> vtable for B[10]
+      24     4      4    int a
+      28     4         padding
 
 vtable for B  13 entries
     0  vbase_offset 16
@@ -40,15 +42,16 @@ vtable for B  13 entries
    11  B::~B() [deleting] [thunk: this +0, vcall offset at -24]
    12  A *A::clone() const
 
-struct C  size 32, align 8, data size 28, padding 8 bytes
-  offset  size
-       0     8  vptr  C  -> vtable for C[3]
-       8     4  int c
-      12     4  padding
-      16    12  A  virtual base
-      16     8    vptr  A  -> vtable for C[10]
-      24     4    int a
-      28     4  padding
+struct C  size 32, align 8 from vptr, data size 28, non-virtual size 12, padding 8 bytes
+  is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
+  offset  size  align
+       0     8      8  vptr  C  -> vtable for C[3]
+       8     4      4  int c
+      12     4         padding
+      16    12      8  A  virtual base
+      16     8      8    vptr  A  -> vtable for C[10]
+      24     4      4    int a
+      28     4         padding
 
 vtable for C  13 entries
     0  vbase_offset 16
@@ -68,20 +71,21 @@ vtable for C  13 entries
    11  C::~C() [deleting] [thunk: this +0, vcall offset at -24]
    12  C *C::clone() const [thunk: this +0, vcall offset at -32, vbase offset at -24]
 
-struct D  size 48, align 8, data size 44, padding 8 bytes
-  offset  size
-       0    12  B  primary base
-       0     8    vptr  B  -> vtable for D[3]
-       8     4    int b
-      12     4  padding
-      16    12  C  base
-      16     8    vptr  C  -> vtable for D[10]
-      24     4    int c
-      28     4  int d
-      32    12  A  virtual base
-      32     8    vptr  A  -> vtable for D[17]
-      40     4    int a
-      44     4  padding
+struct D  size 48, align 8 from base B, data size 44, non-virtual size 32, padding 8 bytes
+  is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
+  offset  size  align
+       0    12      8  B  primary base
+       0     8      8    vptr  B  -> vtable for D[3]
+       8     4      4    int b
+      12     4         padding
+      16    12      8  C  base
+      16     8      8    vptr  C  -> vtable for D[10]
+      24     4      4    int c
+      28     4      4  int d
+      32    12      8  A  virtual base
+      32     8      8    vptr  A  -> vtable for D[17]
+      40     4      4    int a
+      44     4         padding
 
 vtable for D  20 entries
     0  vbase_offset 32

@@ -51,16 +51,18 @@ bool hasFlag(const std::vector<std::string> &args,
   return false;
 }
 
-// Returns the value of --target=, -target or --target, or "" if absent.
+// Returns the value of the last --target=, -target or --target, or "" if
+// absent. Clang also takes the last one.
 std::string findTarget(const std::vector<std::string> &args) {
+  std::string target;
   for (size_t i = 0; i < args.size(); ++i) {
     llvm::StringRef a = args[i];
     if (a.consume_front("--target="))
-      return a.str();
-    if ((a == "-target" || a == "--target") && i + 1 < args.size())
-      return args[i + 1];
+      target = a.str();
+    else if ((a == "-target" || a == "--target") && i + 1 < args.size())
+      target = args[i + 1];
   }
-  return "";
+  return target;
 }
 
 std::vector<std::string> buildArgs(const RunOptions &opts) {

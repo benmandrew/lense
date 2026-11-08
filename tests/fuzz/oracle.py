@@ -15,13 +15,21 @@ own namespace, so that one build serves many cases. macOS checks every new
 executable before its first run, one at a time, so building fewer of them is
 what makes fuzzing scale with cores there.
 
+Both also check the record's traits (standard layout, trivially copyable,
+unique object representations) and the alignment of its direct named fields.
+Given an Extra, they also build each `reorder` suggestion: a copy of the
+program, in its own namespace, where only that record's fields are permuted,
+and check that clang gives the copy the size lense promised.
+
 A second, static checker uses static_assert only, for targets that cannot run
-here (x86-64 Linux, Microsoft).
+here (x86-64 Linux, Microsoft). Their standard library headers are not
+available, so it uses the compiler builtins that <type_traits> is built on.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 PRELUDE = r"""
@@ -29,6 +37,7 @@ PRELUDE = r"""
 #include <cstdio>
 #include <cstring>
 #include <new>
+#include <type_traits>
 #include <typeinfo>
 
 static int lense_failures = 0;
@@ -55,7 +64,59 @@ static void lense_diff(const unsigned char *a, const unsigned char *b,
   *span = lo < 0 ? 0 : hi - lo + 1;
 }
 typedef int (*lense_fn)(const void *);
+static long long lense_max(long long a, long long b) { return a > b ? a : b; }
 """
+
+# Failure lines of reorder checks start with this, so the driver can tell
+# them apart from layout mismatches.
+REORDER = "reorder of "
+
+# (JSON key, std trait, the builtin it is built on)
+TRAITS = [
+    ("standard_layout", "std::is_standard_layout_v", "__is_standard_layout"),
+    ("trivially_copyable", "std::is_trivially_copyable_v",
+     "__is_trivially_copyable"),
+    ("unique_object_representations",
+     "std::has_unique_object_representations_v",
+     "__has_unique_object_representations"),
+]
+
+
+@dataclass
+class Extra:
+    """What the checkers need beyond the report, from the generator's model.
+
+    aligns:   record -> field name -> its alignas (0 if none).
+    reorders: (record, program with that record's fields in lense's
+              suggested order, the size lense gave that order).
+    """
+    aligns: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    reorders: List[Tuple[str, str, int]] = field(default_factory=list)
+
+
+def reorder_ns(name: str) -> str:
+    return f"lense_reorder_{name}"
+
+
+def reorder_decls(extra: Optional[Extra]) -> List[str]:
+    out = []
+    for name, program, _ in (extra.reorders if extra else []):
+        out.append(f"namespace {reorder_ns(name)} {{")
+        out.append(program)
+        out.append(f"}}  // namespace {reorder_ns(name)}")
+    return out
+
+
+def direct_fields(r: dict, extra: Optional[Extra]):
+    """(name, alignas, reported align) of r's direct named non-bitfields."""
+    if extra is None or r["name"] not in extra.aligns:
+        return
+    aligns = extra.aligns[r["name"]]
+    for n in r["members"]:
+        named = n["kind"] == "field" or (n["kind"] == "record" and n["role"] == "field")
+        if named and n.get("name") in aligns and "align" in n:
+            yield n["name"], aligns[n["name"]], n["align"]
+
 
 FUNC_RE = re.compile(r"\bT(\d+)::m(\d+)\(")
 
@@ -65,7 +126,8 @@ def cstr(s: str) -> str:
 
 
 class Checker:
-    def __init__(self, report: dict):
+    def __init__(self, report: dict, extra: Optional[Extra] = None):
+        self.extra = extra
         self.records: Dict[str, dict] = {r["name"]: r for r in report["records"]}
         self.ptr = report["pointer_size"]
         self.lines: List[str] = []
@@ -85,6 +147,13 @@ class Checker:
         self.lines.append(f"  {{ // {name}")
         self.check(f"sizeof({name})", f"sizeof({name})", r["size"])
         self.check(f"alignof({name})", f"alignof({name})", r["align"])
+        for key, trait, _ in TRAITS:
+            if "traits" in r:
+                self.check(f"{trait}<{name}>", f"{trait}<{name}>",
+                           int(r["traits"][key]))
+        for f, alignas, want in direct_fields(r, self.extra):
+            self.check(f"align of {name}.{f}",
+                       f"lense_max(alignof(decltype({name}::{f})), {alignas})", want)
         self.emit(f"alignas({name}) static unsigned char {buf}[sizeof({name})];")
         self.emit(f"std::memset({buf}, 0, sizeof {buf});")
         self.emit(f"{name} *p = ::new (static_cast<void *>({buf})) {name};")
@@ -203,24 +272,29 @@ class Checker:
             self.lines = []
             self.record(r)
             body.extend(self.lines)
+        for name, _, size in (self.extra.reorders if self.extra else []):
+            body.append(f"  lense_check({cstr(REORDER + name + ': sizeof')}, "
+                        f"(long long)sizeof({reorder_ns(name)}::{name}), {size}LL);")
         return body
 
     def source(self, program: str) -> str:
-        return (PRELUDE + "\n" + program + "\n\nint main() {\n" +
+        return (PRELUDE + "\n" + program + "\n" +
+                "\n".join(reorder_decls(self.extra)) + "\n\nint main() {\n" +
                 "\n".join(self.body()) +
                 '\n  if (lense_failures) std::printf("%d failures\\n", '
                 "lense_failures);\n  return lense_failures ? 1 : 0;\n}\n")
 
 
-def runtime_checker(program: str, report: dict) -> str:
-    return Checker(report).source(program)
+def runtime_checker(program: str, report: dict,
+                    extra: Optional[Extra] = None) -> str:
+    return Checker(report, extra).source(program)
 
 
 BEGIN = "@@lense begin "
 END = "@@lense end "
 
 
-def batch_checker(cases: List[Tuple[str, dict]]) -> str:
+def batch_checker(cases: List[Tuple[str, dict, Optional[Extra]]]) -> str:
     """One program that runs the runtime checks of several cases.
 
     Case i lives in namespace lense_case<i>. main() prints BEGIN i before it
@@ -228,11 +302,12 @@ def batch_checker(cases: List[Tuple[str, dict]]) -> str:
     which case was running if the program crashes.
     """
     out = [PRELUDE]
-    for i, (program, report) in enumerate(cases):
+    for i, (program, report, extra) in enumerate(cases):
         out.append(f"namespace lense_case{i} {{")
         out.append(program)
+        out.extend(reorder_decls(extra))
         out.append("static void run() {")
-        out.extend(Checker(report).body())
+        out.extend(Checker(report, extra).body())
         out.append("}")
         out.append(f"}}  // namespace lense_case{i}")
         out.append("")
@@ -247,9 +322,11 @@ def batch_checker(cases: List[Tuple[str, dict]]) -> str:
     return "\n".join(out) + "\n"
 
 
-def static_checker(program: str, report: dict) -> str:
-    """static_asserts on sizes, alignment and offsetof for direct members."""
-    out = [program, ""]
+def static_checker(program: str, report: dict,
+                   extra: Optional[Extra] = None) -> str:
+    """static_asserts on sizes, alignment, traits and offsetof for direct
+    members, and on the size of every reorder suggestion."""
+    out = [program, ""] + reorder_decls(extra) + [""]
 
     def walk(path: str, members: List[dict], root: str):
         for n in members:
@@ -266,5 +343,17 @@ def static_checker(program: str, report: dict) -> str:
                    f"{cstr('sizeof ' + name)});")
         out.append(f"static_assert(alignof({name}) == {r['align']}, "
                    f"{cstr('alignof ' + name)});")
+        for key, _, builtin in TRAITS:
+            if "traits" in r:
+                want = "true" if r["traits"][key] else "false"
+                out.append(f"static_assert({builtin}({name}) == {want}, "
+                           f"{cstr(key + ' ' + name)});")
+        for f, alignas, want in direct_fields(r, extra):
+            a = f"alignof(decltype({name}::{f}))"
+            out.append(f"static_assert(({a} > {alignas} ? {a} : {alignas}) == "
+                       f"{want}, {cstr('align of ' + name + '.' + f)});")
         walk("", r["members"], name)
+    for name, _, size in (extra.reorders if extra else []):
+        out.append(f"static_assert(sizeof({reorder_ns(name)}::{name}) == {size}, "
+                   f"{cstr(REORDER + name + ': sizeof')});")
     return "\n".join(out) + "\n"

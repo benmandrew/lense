@@ -1,6 +1,7 @@
-struct Shape  size 8, align 8
-  offset  size
-       0     8  vptr  Shape  -> vtable for Shape[2]
+struct Shape  size 8, align 8 from vptr
+  is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
+  offset  size  align
+       0     8      8  vptr  Shape  -> vtable for Shape[2]
 
 vtable for Shape  5 entries
    0  offset_to_top 0
@@ -10,11 +11,12 @@ vtable for Shape  5 entries
    3  Shape::~Shape() [deleting]
    4  double Shape::area() const [pure]
 
-struct Square  size 16, align 8
-  offset  size
-       0     8  Shape  primary base
-       0     8    vptr  Shape  -> vtable for Square[2]
-       8     8  double side
+struct Square  size 16, align 8 from base Shape
+  is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
+  offset  size  align
+       0     8      8  Shape  primary base
+       0     8      8    vptr  Shape  -> vtable for Square[2]
+       8     8      8  double side
 
 vtable for Square  5 entries
    0  offset_to_top 0

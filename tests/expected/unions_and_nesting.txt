@@ -1,27 +1,30 @@
-struct Point  size 4, align 2
-  offset  size
-       0     2  short x
-       2     2  short y
+struct Point  size 4, align 2 from x
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
+  offset  size  align
+       0     2      2  short x
+       2     2      2  short y
 
-union Value  size 8, align 8
-  offset  size
-       0     5  char[5] bytes
-       0     4  int i
-       0     8  double d
+union Value  size 8, align 8 from d
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     5      1  char[5] bytes
+       0     4      4  int i
+       0     8      8  double d
 
-struct Packet  size 40, align 8, padding 10 bytes
-  offset  size
-       0     1  char kind
-       1     3  padding
-       4     4  (anonymous union)
-       4     4    int as_int
-       4     4    float as_float
-       8    16  (unnamed struct) header
-       8     1    char tag
-       9     7    padding
-      16     8    long id
-      24     8  Point[2] points
-      32     8  Value v
-      32     5    char[5] bytes
-      32     4    int i
-      32     8    double d
+struct Packet  size 40, align 8 from header, padding 10 bytes
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1      1  char kind
+       1     3         padding
+       4     4      4  (anonymous union)
+       4     4      4    int as_int
+       4     4      4    float as_float
+       8    16      8  (unnamed struct) header
+       8     1      1    char tag
+       9     7           padding
+      16     8      8    long id
+      24     8      2  Point[2] points
+      32     8      8  Value v
+      32     5      1    char[5] bytes
+      32     4      4    int i
+      32     8      8    double d

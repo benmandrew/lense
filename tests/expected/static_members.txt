@@ -1,26 +1,31 @@
-struct Counter  size 8, align 4, padding 3 bytes
-  offset  size
-       0     1  char tag
-       1     3  padding
-       4     4  int value
+struct Counter  size 8, align 4 from value, padding 3 bytes
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1      1  char tag
+       1     3         padding
+       4     4      4  int value
 
 struct OnlyStatics  size 1, align 1, padding 1 byte
-  offset  size
-       0     1  padding
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0     1         padding
 
-struct Node  size 8, align 8
-  offset  size
-       0     8  Node * next
+struct Node  size 8, align 8 from next
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
+  offset  size  align
+       0     8      8  Node * next
 
-struct Registry<short>  size 2, align 2
-  offset  size
-       0     2  short item
+struct Registry<short>  size 2, align 2 from item
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
+  offset  size  align
+       0     2      2  short item
 
-struct Base  size 16, align 8, data size 12, padding 4 bytes
-  offset  size
-       0     8  vptr  Base  -> vtable for Base[2]
-       8     4  int x
-      12     4  padding
+struct Base  size 16, align 8 from vptr, data size 12, padding 4 bytes
+  is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
+  offset  size  align
+       0     8      8  vptr  Base  -> vtable for Base[2]
+       8     4      4  int x
+      12     4         padding
 
 vtable for Base  3 entries
    0  offset_to_top 0

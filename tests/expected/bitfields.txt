@@ -1,10 +1,11 @@
-struct Flags  size 16, align 8, padding 74 bits
-  offset  size
-       0    1b  unsigned int ready : 1
-     0:1    3b  unsigned int mode : 3
-     0:4    2b  unsigned int (unnamed) : 2
-     0:6   40b  unsigned long long wide : 40
-     5:6   18b  padding
-       8    0b  int (unnamed) : 0
-       8     1  char tail
-       9     7  padding
+struct Flags  size 16, align 8 from wide, padding 74 bits, little-endian
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
+  offset  size  align
+       0    1b         unsigned int ready : 1  location 1
+     0:1    3b         unsigned int mode : 3  location 1
+     0:4    2b         unsigned int (unnamed) : 2  location 1
+     0:6   40b         unsigned long long wide : 40  location 1
+     5:6   18b         padding
+       8    0b         int (unnamed) : 0
+       8     1      1  char tail
+       9     7         padding

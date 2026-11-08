@@ -44,6 +44,18 @@ struct Node {
   std::string name; // Member name. Empty for bases and unnamed members.
   std::string tag;  // "struct", "class" or "union" for Record nodes.
   bool empty = false;
+  // Alignment the member asks for, from its type and any alignas on it.
+  // Zero for bitfields and padding.
+  uint64_t alignBits = 0;
+  // The member is not guaranteed to sit at a multiple of alignBits: its
+  // offset, or the alignment of the outermost record, is too small.
+  bool unaligned = false;
+  // A leaf that spans a cache-line boundary, counting from the start of the
+  // outermost record.
+  bool crossesCacheLine = false;
+  // BitField: the memory location it belongs to, numbered from 1 within the
+  // outermost record. Adjacent bitfields of nonzero width share one.
+  unsigned location = 0;
   std::optional<VTableRef> vtable; // Set on VPtr nodes when resolvable.
   std::vector<Node> children;
 };
@@ -110,6 +122,29 @@ struct SourceSpan {
   SourceStyle style = SourceStyle::Keyword;
 };
 
+// What set a record's alignment.
+enum class AlignSource {
+  None,      // Nothing beyond the minimum of 1.
+  Member,    // The member named in `text` ("y", "base A", "vptr").
+  Attribute, // An alignment attribute on the record, spelled in `text`.
+  Packed,    // __attribute__((packed)) lowered it.
+  Pack,      // #pragma pack or -fpack-struct lowered it; `text` says which.
+};
+
+// Type traits that decide what code may do with the bytes. C++ only.
+struct Traits {
+  bool standardLayout = false;     // offsetof is defined.
+  bool triviallyCopyable = false;  // memcpy copies the value.
+  bool uniqueObjectRepresentations = false; // Equal values, equal bytes.
+};
+
+// A field order with a smaller size, checked by laying it out with clang.
+struct Reorder {
+  uint64_t size = 0;            // Bytes.
+  std::vector<unsigned> order;  // Indices into the fields, in new order.
+  std::vector<std::string> fields; // Their names; "" for unnamed ones.
+};
+
 struct Record {
   std::string name;
   std::string tag;
@@ -121,6 +156,11 @@ struct Record {
   uint64_t nvSize = 0;
   uint64_t nvAlign = 0;
   uint64_t paddingBits = 0;
+  AlignSource alignSource = AlignSource::None;
+  std::string alignText;
+  std::optional<Traits> traits;
+  std::optional<Reorder> reorder;
+  bool hasBitFields = false;
   // The definition as written, in whole lines with common indentation
   // removed, and the line it starts on. Empty unless asked for.
   std::string source;
@@ -135,6 +175,8 @@ struct Report {
   std::string target;
   std::string abi; // "itanium" or "microsoft".
   unsigned pointerBits = 0;
+  bool bigEndian = false;
+  unsigned cacheLine = 0; // Bytes; 0 when cache lines are not marked.
   std::vector<Record> records;
 };
 

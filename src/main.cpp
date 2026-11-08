@@ -40,6 +40,16 @@ static cl::opt<std::string> target("target",
                                             "x86_64-pc-windows-msvc"),
                                    cl::value_desc("triple"), cl::cat(category));
 static cl::opt<std::string>
+    compare("compare",
+            cl::desc("Also lay out for this target and show the two side by "
+                     "side"),
+            cl::value_desc("triple"), cl::cat(category));
+static cl::opt<unsigned>
+    cacheLine("cache-line",
+              cl::desc("Mark cache-line boundaries of this many bytes; 0 "
+                       "turns them off (default 64)"),
+              cl::value_desc("bytes"), cl::init(64), cl::cat(category));
+static cl::opt<std::string>
     lang("lang", cl::desc("Language of standard input: c or c++"),
          cl::init("c++"), cl::cat(category));
 
@@ -84,8 +94,14 @@ int main(int argc, char **argv) {
     fileName = abs.str().str();
   }
 
+  if (cacheLine & (cacheLine - 1)) {
+    llvm::errs() << "lense: --cache-line must be a power of two or 0\n";
+    return 2;
+  }
+
   lense::RunOptions opts;
-  opts.analyze.vtables = vtables;
+  opts.analyze.cacheLine = cacheLine;
+  opts.analyze.vtables = vtables && compare.empty();
   opts.analyze.expandSystem = expandSystem;
   opts.analyze.source = source;
   opts.analyze.records.assign(records.begin(), records.end());
@@ -99,10 +115,20 @@ int main(int argc, char **argv) {
   bool ok = lense::run((*buffer)->getBuffer(), fileName, opts, report);
 
   llvm::raw_ostream &os = llvm::outs();
-  if (json) {
+  if (!json)
+    os.enable_colors(llvm::WithColor(os).colorsEnabled());
+  if (!compare.empty()) {
+    // Clang takes the last --target, so this overrides any given before.
+    opts.clangArgs.push_back("--target=" + compare);
+    lense::Report other;
+    ok &= lense::run((*buffer)->getBuffer(), fileName, opts, other);
+    if (json)
+      lense::printJsonCompare(os, report, other);
+    else
+      lense::printTextCompare(os, report, other);
+  } else if (json) {
     lense::printJson(os, report);
   } else {
-    os.enable_colors(llvm::WithColor(os).colorsEnabled());
     lense::printText(os, report);
   }
   return ok ? 0 : 1;

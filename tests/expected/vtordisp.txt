@@ -1,8 +1,9 @@
-struct A  size 16, align 8, data size 12, padding 4 bytes
-  offset  size
-       0     8  vptr  A  -> vtable for A[2]
-       8     4  int a
-      12     4  padding
+struct A  size 16, align 8 from vptr, data size 12, padding 4 bytes
+  is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
+  offset  size  align
+       0     8      8  vptr  A  -> vtable for A[2]
+       8     4      4  int a
+      12     4         padding
 
 vtable for A  3 entries
    0  offset_to_top 0
@@ -10,15 +11,16 @@ vtable for A  3 entries
       address point: A @0
    2  void A::f()
 
-struct B  size 32, align 8, data size 28, padding 8 bytes
-  offset  size
-       0     8  vptr  B  -> vtable for B[3]
-       8     4  int b
-      12     4  padding
-      16    12  A  virtual base
-      16     8    vptr  A  -> vtable for B[7]
-      24     4    int a
-      28     4  padding
+struct B  size 32, align 8 from vptr, data size 28, non-virtual size 12, padding 8 bytes
+  is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
+  offset  size  align
+       0     8      8  vptr  B  -> vtable for B[3]
+       8     4      4  int b
+      12     4         padding
+      16    12      8  A  virtual base
+      16     8      8    vptr  A  -> vtable for B[7]
+      24     4      4    int a
+      28     4         padding
 
 vtable for B  8 entries
    0  vbase_offset 16

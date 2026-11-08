@@ -5,8 +5,10 @@ Modes:
   oracle  Generate valid class hierarchies, run lense, then check its report
           against compiled code: a runtime checker on the host (one build per
           --cxx compiler), static_asserts for x86-64 Linux and Microsoft
-          targets, and the structural properties in props.py. Failures are
-          shrunk to a minimal program.
+          targets, and the structural properties in props.py. Every
+          `reorder` suggestion is rebuilt with the record's fields in the
+          suggested order and its size checked by the same builds. Failures
+          are shrunk to a minimal program.
   mutate  Corrupt generated programs at random and check that lense never
           crashes, always prints valid JSON, and that whatever records it
           reports still satisfy the properties.
@@ -66,7 +68,32 @@ class Prepared:
     src: str
     report: dict
     files: Dict[str, str]
+    extra: Optional[oracle.Extra] = None
     out: Outcome = field(default_factory=Outcome)
+
+
+def extra_for(p: gen.Program, report: dict):
+    """The oracle's view of the model: alignas on each field, and a copy of
+    the program for every reorder in the report. Returns an error string if
+    a reorder does not match the model's fields."""
+    ex = oracle.Extra()
+    for c in p.classes:
+        ex.aligns[c.name] = {f.name: f.align for f in c.fields
+                             if f.name and f.kind != "bitfield"}
+    for r in report["records"]:
+        ro = r.get("reorder")
+        if ro is None:
+            continue
+        c = p.get(r["name"])
+        try:
+            q = gen.permute(p, c.name, ro["order"])
+        except ValueError as e:
+            return str(e)
+        names = [c.fields[i].name or "" for i in ro["order"]]
+        if names != ro["fields"]:
+            return f"{c.name}: reorder.fields {ro['fields']}, model says {names}"
+        ex.reorders.append((c.name, gen.render(q), ro["size"]))
+    return ex
 
 
 class Fuzzer:
@@ -172,8 +199,11 @@ class Fuzzer:
             got = sorted(rec["name"] for rec in report["records"])
             if want != got:
                 return Outcome(failure=Failure("records", f"want {want}, got {got}", files))
+            extra = extra_for(p, report)
+            if isinstance(extra, str):
+                return Outcome(failure=Failure("reorder-fields", extra, files))
             # Saved with failures: a standalone checker for this case alone.
-            files["checker.cpp"] = oracle.runtime_checker(src, report)
+            files["checker.cpp"] = oracle.runtime_checker(src, report, extra)
 
             for name, flag in self.cross.items():
                 rc = self.lense(path, d, "--json", flag)
@@ -186,16 +216,23 @@ class Fuzzer:
                 errs = props.check_report(cross_report)
                 if errs:
                     return Outcome(failure=Failure(f"property:{name}", "\n".join(errs), files))
+                cross_extra = extra_for(p, cross_report)
+                if isinstance(cross_extra, str):
+                    return Outcome(failure=Failure(f"reorder-fields:{name}",
+                                                   cross_extra, files))
                 spath = os.path.join(d, f"static.{name}.cpp")
-                static = oracle.static_checker(src, cross_report)
+                static = oracle.static_checker(src, cross_report, cross_extra)
                 files[f"static.{name}.cpp"] = static
                 with open(spath, "w") as f:
                     f.write(static)
                 sc = self.run([self.args.static_cxx, "-std=c++20", "-fsyntax-only",
                                "-w", flag, spath], d)
                 if sc.returncode != 0:
-                    return Outcome(failure=Failure(f"static:{name}", sc.stderr, files))
-        return Prepared(src, report, files)
+                    errors = [l for l in sc.stderr.splitlines() if "error:" in l]
+                    kind = "reorder" if errors and all(
+                        oracle.REORDER in l for l in errors) else "static"
+                    return Outcome(failure=Failure(f"{kind}:{name}", sc.stderr, files))
+        return Prepared(src, report, files, extra)
 
     def batch(self, cxx: str, cases: List[Prepared]) -> List[Optional[Failure]]:
         """Runtime-checks the cases with cxx, as few builds as possible."""
@@ -223,7 +260,8 @@ class Fuzzer:
         with tempfile.TemporaryDirectory() as d:
             cpath = os.path.join(d, "checker.cpp")
             with open(cpath, "w") as f:
-                f.write(oracle.batch_checker([(c.src, c.report) for c in cases]))
+                f.write(oracle.batch_checker([(c.src, c.report, c.extra)
+                                           for c in cases]))
             exe = os.path.join(d, "checker")
             c = self.run([cxx, "-std=c++20", "-O0", "-w", "-o", exe, cpath], d)
             if c.returncode != 0:
@@ -250,7 +288,11 @@ class Fuzzer:
             if n == 0:
                 res[i] = None
             elif n is not None:
-                res[i] = Failure("runtime-mismatch", f"{cxx}: exit 1\n" +
+                fails = [l for l in lines if l.startswith("FAIL ")]
+                kind = "reorder" if fails and all(
+                    l.startswith("FAIL " + oracle.REORDER) for l in fails) \
+                    else "runtime-mismatch"
+                res[i] = Failure(kind, f"{cxx}: exit 1\n" +
                                  "".join(l + "\n" for l in lines), cases[i].files)
         if x.returncode != 0:
             running = [i for i, (_, n) in seen.items() if n is None]

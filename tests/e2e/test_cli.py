@@ -54,7 +54,8 @@ class Cli(unittest.TestCase):
         r = lense("--help")
         self.assertEqual(r.returncode, 0)
         for opt in ("--json", "--target", "--record", "--vtables",
-                    "--expand-system", "--source", "--lang", "--color"):
+                    "--expand-system", "--source", "--lang", "--color",
+                    "--compare", "--cache-line"):
             self.assertIn(opt, r.stdout)
 
     def test_version(self):
@@ -241,6 +242,175 @@ void f() {
         self.assertNotIn("\x1b[", lense("--color=false", LINUX, path).stdout)
         # Output to a pipe is not a terminal, so auto means no colour.
         self.assertNotIn("\x1b[", lense(LINUX, path).stdout)
+
+    # -- layout notes --------------------------------------------------------
+
+    def members(self, rec: dict) -> dict:
+        out = {}
+
+        def walk(ms):
+            for m in ms:
+                if m.get("name"):
+                    out[m["name"]] = m
+                if m["kind"] == "record":
+                    walk(m["members"])
+        walk(rec["members"])
+        return out
+
+    def test_member_alignment(self):
+        src = "struct S { char c; alignas(8) int i; double d[2]; };\n"
+        m = self.members(records(lense("--json", LINUX, "-", stdin=src).stdout)["S"])
+        self.assertEqual((m["c"]["align"], m["i"]["align"], m["d"]["align"]), (1, 8, 8))
+
+    def test_align_source(self):
+        src = ("struct M { char c; double d; };\n"
+               "struct alignas(16) A { char c; };\n"
+               "struct __attribute__((packed)) P { int i; };\n"
+               "#pragma pack(2)\nstruct K { double d; };\n#pragma pack()\n"
+               "struct V { virtual void f(); };\n"
+               "struct D : M { char e; };\n"
+               "struct N { char c; };\n")
+        recs = records(lense("--json", LINUX, "-", stdin=src).stdout)
+        got = {n: (r["align_source"]["kind"], r["align_source"].get("text"))
+               for n, r in recs.items()}
+        self.assertEqual(got, {
+            "M": ("member", "d"), "A": ("attribute", "alignas(16)"),
+            "P": ("packed", "__attribute__((packed))"),
+            "K": ("pack", "#pragma pack(2)"), "V": ("member", "vptr"),
+            "D": ("member", "base M"), "N": ("none", None)})
+        text = lense("--color=false", LINUX, "--record=A", "-", stdin=src).stdout
+        self.assertIn("align 16 from alignas(16)", text)
+
+    def test_unaligned_members(self):
+        src = ("struct __attribute__((packed)) P { char c; int i; };\n"
+               "struct __attribute__((packed)) Q { int i; };\n"
+               "struct S { char c; int i; };\n")
+        recs = records(lense("--json", LINUX, "-", stdin=src).stdout)
+        self.assertTrue(self.members(recs["P"])["i"].get("unaligned"))
+        # At offset 0, but a Q can sit at any address.
+        self.assertTrue(self.members(recs["Q"])["i"].get("unaligned"))
+        self.assertNotIn("unaligned", self.members(recs["S"])["i"])
+        text = lense("--color=false", LINUX, "--record=P", "-", stdin=src).stdout
+        self.assertIn("int i  (unaligned)", text)
+
+    def test_memory_locations(self):
+        src = ("struct S { unsigned a : 3, b : 5; char c; unsigned d : 2;\n"
+               "  unsigned : 0; unsigned e : 1; };\n"
+               "union U { unsigned x : 1; unsigned y : 2; };\n")
+        recs = records(lense("--json", LINUX, "-", stdin=src).stdout)
+        loc = {n: m.get("memory_location") for n, m in self.members(recs["S"]).items()}
+        self.assertEqual(loc, {"a": 1, "b": 1, "c": None, "d": 2, "e": 3})
+        loc = {n: m.get("memory_location") for n, m in self.members(recs["U"]).items()}
+        self.assertEqual(loc, {"x": 1, "y": 2})
+        text = lense("--color=false", LINUX, "--record=S", "-", stdin=src).stdout
+        self.assertIn("unsigned int b : 5  location 1", text)
+
+    def test_endianness(self):
+        src = "struct S { unsigned a : 3; };\nstruct T { int i; };\n"
+        r = lense("--json", "--target=powerpc-linux-gnu", "-", stdin=src)
+        self.assertEqual(json.loads(r.stdout)["endian"], "big")
+        self.assertEqual(json.loads(lense("--json", LINUX, "-", stdin=src).stdout)["endian"],
+                         "little")
+        text = lense("--color=false", "--target=powerpc-linux-gnu", "-", stdin=src).stdout
+        headers = [l for l in text.splitlines() if l.startswith("struct")]
+        self.assertTrue(headers[0].endswith(", big-endian"), headers[0])
+        self.assertNotIn("endian", headers[1])  # no bitfields
+
+    def test_non_virtual_size_in_text(self):
+        src = "struct A { long a; };\nstruct B : virtual A { char b; };\n"
+        text = lense("--color=false", LINUX, "--record=B", "-", stdin=src).stdout
+        self.assertIn("non-virtual size 9", text)
+        self.assertNotIn("non-virtual", lense("--color=false", LINUX, "--record=A", "-",
+                                              stdin=src).stdout)
+
+    def test_traits(self):
+        src = ("struct I { int a, b; };\n"
+               "struct F { float f; };\n"
+               "struct P { char c; int i; };\n"
+               "struct C { C(const C &); int i; };\n"
+               "struct V { virtual void f(); };\n")
+        recs = records(lense("--json", LINUX, "-", stdin=src).stdout)
+        t = {n: tuple(r["traits"].values()) for n, r in recs.items()}
+        self.assertEqual(t, {
+            "I": (True, True, True), "F": (True, True, False),
+            "P": (True, True, False), "C": (True, False, False),
+            "V": (False, False, False)})
+        text = lense("--color=false", LINUX, "--record=P", "-", stdin=src).stdout
+        self.assertIn("is_standard_layout yes, is_trivially_copyable yes, "
+                      "has_unique_object_representations no", text)
+        c = records(lense("--json", LINUX, "--lang=c", "-", stdin="struct I { int a; };").stdout)
+        self.assertNotIn("traits", c["I"])
+
+    def test_cache_lines(self):
+        src = "struct S { char c; char buf[100]; int tail; };\n"
+        r = records(lense("--json", LINUX, "-", stdin=src).stdout)["S"]
+        self.assertTrue(self.members(r)["buf"].get("crosses_cache_line"))
+        self.assertNotIn("crosses_cache_line", self.members(r)["tail"])
+        text = lense("--color=false", LINUX, "-", stdin=src).stdout
+        self.assertIn("--- cache line 1 (byte 64) ---", text)
+        self.assertIn("(crosses cache line)", text)
+        off = lense("--color=false", LINUX, "--cache-line=0", "-", stdin=src).stdout
+        self.assertNotIn("cache line", off)
+        wide = lense("--json", LINUX, "--cache-line=128", "-", stdin=src).stdout
+        self.assertNotIn("crosses_cache_line", wide)
+        self.assertEqual(json.loads(wide)["cache_line"], 128)
+        self.assertEqual(lense(LINUX, "--cache-line=48", "-", stdin=src).returncode, 2)
+
+    def test_reorder(self):
+        src = ("struct S { char a; double b; char c; int d; };\n"
+               "struct Tight { double b; int d; char a, c; };\n"
+               "union U { char a; double b; };\n"
+               "struct A { int x; };\n"
+               "struct V : virtual A { char a; double b; char c; };\n"
+               "struct Flex { char c; long long v; int n; char data[]; };\n"
+               "struct Bits { char a; double d; unsigned x : 3, y : 3; };\n"
+               "struct Base { virtual void f(); char x; };\n"
+               "struct Derived : Base { double d; char e; };\n")
+        recs = records(lense("--json", LINUX, "-", stdin=src).stdout)
+        self.assertEqual(recs["S"]["reorder"], {"size": 16, "order": [1, 0, 2, 3],
+                                                "fields": ["b", "a", "c", "d"]})
+        for name in ("Tight", "U", "V"):
+            self.assertNotIn("reorder", recs[name], name)
+        self.assertEqual(recs["Flex"]["reorder"]["fields"][-1], "data")
+        # Adjacent bitfields move together.
+        order = recs["Bits"]["reorder"]["order"]
+        self.assertEqual(order.index(3), order.index(2) + 1)
+        # Derived's own fields can go in Base's tail padding.
+        self.assertEqual(recs["Derived"]["reorder"]["size"], 24)
+        text = lense("--color=false", LINUX, "--record=S", "-", stdin=src).stdout
+        self.assertIn("reordering the fields saves 8 bytes (size 16): b, a, c, d", text)
+
+    def test_compare_text(self):
+        src = ("struct L { char c; long l; };\n"
+               "struct I { int a, b; };\n"
+               "#ifdef _WIN32\nstruct W { int w; };\n#endif\n")
+        r = lense("--color=false", LINUX, "--compare=i686-linux-gnu", "-", stdin=src)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("struct I  same on both targets: size 8, align 4", r.stdout)
+        lines = r.stdout.splitlines()
+        row = next(l for l in lines if l.endswith("long l"))
+        self.assertTrue(row.startswith("* "), row)
+        self.assertEqual(row.split()[1:7], ["8", "8", "8", "4", "4", "4"])
+        self.assertIn("  x86_64-unknown-linux-gnu  size 16, align 8 from l", r.stdout)
+        r = lense("--color=false", LINUX, "--compare=x86_64-pc-windows-msvc", "-",
+                  stdin=src)
+        self.assertIn("struct W  only on x86_64-pc-windows-msvc", r.stdout)
+
+    def test_compare_overrides_target_in_clang_args(self):
+        src = "struct L { long l; };\n"
+        r = lense("--color=false", "--compare=i686-linux-gnu", "-", "--", LINUX,
+                  stdin=src)
+        self.assertIn("x86_64-unknown-linux-gnu", r.stdout)
+        self.assertIn("i686-unknown-linux-gnu", r.stdout)
+
+    def test_compare_json(self):
+        src = "struct L { char c; long l; };\n"
+        out = json.loads(lense("--json", LINUX, "--compare=x86_64-pc-windows-msvc", "-",
+                               stdin=src).stdout)
+        a, b = out["reports"]
+        self.assertEqual((a["abi"], b["abi"]), ("itanium", "microsoft"))
+        self.assertEqual((records(json.dumps(a))["L"]["size"],
+                          records(json.dumps(b))["L"]["size"]), (16, 8))
 
     # -- errors and robustness -----------------------------------------------
 

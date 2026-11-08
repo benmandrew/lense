@@ -2,6 +2,8 @@
   "target": "x86_64-unknown-linux-gnu",
   "abi": "itanium",
   "pointer_size": 8,
+  "endian": "little",
+  "cache_line": 64,
   "records": [
     {
       "name": "Box<char>",
@@ -16,6 +18,15 @@
       "nv_size": 9,
       "nv_align": 8,
       "padding_bits": 56,
+      "align_source": {
+        "kind": "member",
+        "text": "vptr"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 9,
@@ -28,6 +39,7 @@
           "offset": 0,
           "size": 8,
           "type": "Box<char>",
+          "align": 8,
           "points_to": {
             "table": "vtable for Box<char>",
             "slot": 2
@@ -38,7 +50,8 @@
           "offset": 8,
           "size": 1,
           "type": "char",
-          "name": "value"
+          "name": "value",
+          "align": 1
         },
         {
           "kind": "padding",
@@ -101,6 +114,15 @@
       "nv_size": 16,
       "nv_align": 8,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "vptr"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [],
       "members": [
         {
@@ -108,6 +130,7 @@
           "offset": 0,
           "size": 8,
           "type": "Box<double>",
+          "align": 8,
           "points_to": {
             "table": "vtable for Box<double>",
             "slot": 2
@@ -118,7 +141,8 @@
           "offset": 8,
           "size": 8,
           "type": "double",
-          "name": "value"
+          "name": "value",
+          "align": 8
         }
       ],
       "vtables": [
@@ -176,6 +200,15 @@
       "nv_size": 6,
       "nv_align": 2,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "items"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -183,7 +216,8 @@
           "offset": 0,
           "size": 6,
           "type": "short[3]",
-          "name": "items"
+          "name": "items",
+          "align": 2
         }
       ],
       "vtables": []
@@ -201,6 +235,15 @@
       "nv_size": 22,
       "nv_align": 8,
       "padding_bits": 72,
+      "align_source": {
+        "kind": "member",
+        "text": "b"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 9,
@@ -220,12 +263,14 @@
           "tag": "struct",
           "type": "Box<char>",
           "name": "b",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 0,
               "size": 8,
               "type": "Box<char>",
+              "align": 8,
               "points_to": {
                 "table": "vtable for Box<char>",
                 "slot": 2
@@ -236,7 +281,8 @@
               "offset": 8,
               "size": 1,
               "type": "char",
-              "name": "value"
+              "name": "value",
+              "align": 1
             },
             {
               "kind": "padding",
@@ -253,13 +299,15 @@
           "tag": "struct",
           "type": "Array<short, 3>",
           "name": "a",
+          "align": 2,
           "members": [
             {
               "kind": "field",
               "offset": 16,
               "size": 6,
               "type": "short[3]",
-              "name": "items"
+              "name": "items",
+              "align": 2
             }
           ]
         },

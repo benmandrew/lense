@@ -2,6 +2,8 @@
   "target": "x86_64-pc-windows-msvc19.33.0",
   "abi": "microsoft",
   "pointer_size": 8,
+  "endian": "little",
+  "cache_line": 64,
   "records": [
     {
       "name": "Point",
@@ -16,6 +18,15 @@
       "nv_size": 4,
       "nv_align": 2,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "x"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -23,14 +34,16 @@
           "offset": 0,
           "size": 2,
           "type": "short",
-          "name": "x"
+          "name": "x",
+          "align": 2
         },
         {
           "kind": "field",
           "offset": 2,
           "size": 2,
           "type": "short",
-          "name": "y"
+          "name": "y",
+          "align": 2
         }
       ],
       "vtables": []
@@ -48,6 +61,15 @@
       "nv_size": 8,
       "nv_align": 8,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "d"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": false
+      },
       "holes": [],
       "members": [
         {
@@ -55,21 +77,24 @@
           "offset": 0,
           "size": 5,
           "type": "char[5]",
-          "name": "bytes"
+          "name": "bytes",
+          "align": 1
         },
         {
           "kind": "field",
           "offset": 0,
           "size": 4,
           "type": "int",
-          "name": "i"
+          "name": "i",
+          "align": 4
         },
         {
           "kind": "field",
           "offset": 0,
           "size": 8,
           "type": "double",
-          "name": "d"
+          "name": "d",
+          "align": 8
         }
       ],
       "vtables": []
@@ -87,6 +112,15 @@
       "nv_size": 32,
       "nv_align": 8,
       "padding_bits": 48,
+      "align_source": {
+        "kind": "member",
+        "text": "v"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": false
+      },
       "holes": [
         {
           "offset": 1,
@@ -103,7 +137,8 @@
           "offset": 0,
           "size": 1,
           "type": "char",
-          "name": "kind"
+          "name": "kind",
+          "align": 1
         },
         {
           "kind": "padding",
@@ -117,20 +152,23 @@
           "size": 4,
           "tag": "union",
           "type": "(anonymous union)",
+          "align": 4,
           "members": [
             {
               "kind": "field",
               "offset": 4,
               "size": 4,
               "type": "int",
-              "name": "as_int"
+              "name": "as_int",
+              "align": 4
             },
             {
               "kind": "field",
               "offset": 4,
               "size": 4,
               "type": "float",
-              "name": "as_float"
+              "name": "as_float",
+              "align": 4
             }
           ]
         },
@@ -142,13 +180,15 @@
           "tag": "struct",
           "type": "(unnamed struct)",
           "name": "header",
+          "align": 4,
           "members": [
             {
               "kind": "field",
               "offset": 8,
               "size": 1,
               "type": "char",
-              "name": "tag"
+              "name": "tag",
+              "align": 1
             },
             {
               "kind": "padding",
@@ -160,7 +200,8 @@
               "offset": 12,
               "size": 4,
               "type": "long",
-              "name": "id"
+              "name": "id",
+              "align": 4
             }
           ]
         },
@@ -169,7 +210,8 @@
           "offset": 16,
           "size": 8,
           "type": "Point[2]",
-          "name": "points"
+          "name": "points",
+          "align": 2
         },
         {
           "kind": "record",
@@ -179,27 +221,31 @@
           "tag": "union",
           "type": "Value",
           "name": "v",
+          "align": 8,
           "members": [
             {
               "kind": "field",
               "offset": 24,
               "size": 5,
               "type": "char[5]",
-              "name": "bytes"
+              "name": "bytes",
+              "align": 1
             },
             {
               "kind": "field",
               "offset": 24,
               "size": 4,
               "type": "int",
-              "name": "i"
+              "name": "i",
+              "align": 4
             },
             {
               "kind": "field",
               "offset": 24,
               "size": 8,
               "type": "double",
-              "name": "d"
+              "name": "d",
+              "align": 8
             }
           ]
         }

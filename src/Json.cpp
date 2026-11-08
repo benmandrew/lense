@@ -32,6 +32,17 @@ const char *roleName(Role r) {
   return "";
 }
 
+const char *alignSourceName(AlignSource s) {
+  switch (s) {
+  case AlignSource::None: return "none";
+  case AlignSource::Member: return "member";
+  case AlignSource::Attribute: return "attribute";
+  case AlignSource::Packed: return "packed";
+  case AlignSource::Pack: return "pack";
+  }
+  return "";
+}
+
 const char *entryName(EntryKind k) {
   switch (k) {
   case EntryKind::VCallOffset: return "vcall_offset";
@@ -90,6 +101,14 @@ void node(llvm::json::OStream &J, const Node &n) {
       attr(J, "name", n.name);
     if (n.empty)
       J.attribute("empty", true);
+    if (n.alignBits && n.kind != NodeKind::BitField)
+      J.attribute("align", n.alignBits / 8);
+    if (n.unaligned)
+      J.attribute("unaligned", true);
+    if (n.crossesCacheLine)
+      J.attribute("crosses_cache_line", true);
+    if (n.location)
+      J.attribute("memory_location", n.location);
     if (n.vtable)
       J.attributeObject("points_to", [&] {
         attr(J, "table", n.vtable->table);
@@ -167,14 +186,14 @@ void vtable(llvm::json::OStream &J, const VTable &vt) {
   });
 }
 
-} // namespace
-
-void printJson(llvm::raw_ostream &os, const Report &report) {
-  llvm::json::OStream J(os, 2);
+void report(llvm::json::OStream &J, const Report &report) {
   J.object([&] {
     attr(J, "target", report.target);
     attr(J, "abi", report.abi);
     J.attribute("pointer_size", report.pointerBits / 8);
+    attr(J, "endian", report.bigEndian ? "big" : "little");
+    if (report.cacheLine)
+      J.attribute("cache_line", report.cacheLine);
     J.attributeArray("records", [&] {
       for (const Record &r : report.records)
         J.object([&] {
@@ -190,6 +209,30 @@ void printJson(llvm::raw_ostream &os, const Report &report) {
           J.attribute("nv_size", r.nvSize);
           J.attribute("nv_align", r.nvAlign);
           J.attribute("padding_bits", r.paddingBits);
+          J.attributeObject("align_source", [&] {
+            attr(J, "kind", alignSourceName(r.alignSource));
+            if (!r.alignText.empty())
+              attr(J, "text", r.alignText);
+          });
+          if (r.traits)
+            J.attributeObject("traits", [&] {
+              J.attribute("standard_layout", r.traits->standardLayout);
+              J.attribute("trivially_copyable", r.traits->triviallyCopyable);
+              J.attribute("unique_object_representations",
+                          r.traits->uniqueObjectRepresentations);
+            });
+          if (r.reorder)
+            J.attributeObject("reorder", [&] {
+              J.attribute("size", r.reorder->size);
+              J.attributeArray("order", [&] {
+                for (unsigned i : r.reorder->order)
+                  J.value(i);
+              });
+              J.attributeArray("fields", [&] {
+                for (const std::string &f : r.reorder->fields)
+                  J.value(f);
+              });
+            });
           if (!r.source.empty())
             J.attributeObject("source", [&] {
               J.attribute("line", r.sourceLine);
@@ -208,6 +251,24 @@ void printJson(llvm::raw_ostream &os, const Report &report) {
               vtable(J, vt);
           });
         });
+    });
+  });
+}
+
+} // namespace
+
+void printJson(llvm::raw_ostream &os, const Report &r) {
+  llvm::json::OStream J(os, 2);
+  report(J, r);
+  os << '\n';
+}
+
+void printJsonCompare(llvm::raw_ostream &os, const Report &a, const Report &b) {
+  llvm::json::OStream J(os, 2);
+  J.object([&] {
+    J.attributeArray("reports", [&] {
+      report(J, a);
+      report(J, b);
     });
   });
   os << '\n';

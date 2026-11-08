@@ -277,6 +277,21 @@ def render(p: Program) -> str:
     return "\n".join(out)
 
 
+def permute(p: Program, name: str, order: List[int]) -> Program:
+    """A copy of p where class `name` declares its fields in `order`.
+
+    order[k] is the declaration index of the field that goes k-th, as in
+    lense's `reorder.order`. Unnamed bitfields count, as in clang.
+    """
+    q = copy.deepcopy(p)
+    c = q.get(name)
+    if sorted(order) != list(range(len(c.fields))):
+        raise ValueError(f"{name}: {order} is not a permutation of "
+                         f"{len(c.fields)} fields")
+    c.fields = [c.fields[i] for i in order]
+    return q
+
+
 # ---- Shrinking --------------------------------------------------------------
 
 def shrink_candidates(p: Program):

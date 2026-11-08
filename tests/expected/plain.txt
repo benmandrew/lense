@@ -1,19 +1,20 @@
-struct node  size 16, align 8, padding 3 bytes
-  offset  size
-       0     8  struct node * next
-       8     1  char tag
-       9     3  padding
-      12     4  int value
+struct node  size 16, align 8 from next, padding 3 bytes
+  offset  size  align
+       0     8      8  struct node * next
+       8     1      1  char tag
+       9     3         padding
+      12     4      4  int value
 
-struct padded_t  size 24, align 8, padding 14 bytes
-  offset  size
-       0     1  char a
-       1     7  padding
-       8     8  double b
-      16     1  char c
-      17     7  padding
+struct padded_t  size 24, align 8 from b, padding 14 bytes
+  offset  size  align
+       0     1      1  char a
+       1     7         padding
+       8     8      8  double b
+      16     1      1  char c
+      17     7         padding
+  reordering the fields saves 8 bytes (size 16): a, c, b
 
-struct flex  size 4, align 4
-  offset  size
-       0     4  int len
-       4     0  char[] data
+struct flex  size 4, align 4 from len
+  offset  size  align
+       0     4      4  int len
+       4     0      1  char[] data

@@ -17,6 +17,13 @@ export interface LayoutNode extends Span {
   type?: string;
   name?: string;
   empty?: boolean;
+  /** Alignment in bytes; absent on bitfields and padding. */
+  align?: number;
+  /** Placed below its natural alignment (packed, #pragma pack). */
+  unaligned?: true;
+  crosses_cache_line?: true;
+  /** Bitfields only: which memory location (C++ [intro.memory]) it is in. */
+  memory_location?: number;
   points_to?: { table: string; slot: number };
   members?: LayoutNode[];
 }
@@ -50,6 +57,24 @@ export interface VTable {
   entries: Entry[];
 }
 
+export interface AlignSource {
+  kind: 'none' | 'member' | 'attribute' | 'packed' | 'pack';
+  text?: string;
+}
+
+export interface Traits {
+  standard_layout: boolean;
+  trivially_copyable: boolean;
+  unique_object_representations: boolean;
+}
+
+export interface Reorder {
+  size: number;
+  order: number[];
+  /** Field names in the new order; "" is an unnamed field. */
+  fields: string[];
+}
+
 export interface LayoutRecord {
   name: string;
   tag: string;
@@ -60,6 +85,11 @@ export interface LayoutRecord {
   nv_size: number;
   nv_align: number;
   padding_bits: number;
+  align_source: AlignSource;
+  /** C++ only. */
+  traits?: Traits;
+  /** A field order that clang laid out smaller. */
+  reorder?: Reorder;
   holes: Span[];
   members: LayoutNode[];
   vtables: VTable[];
@@ -69,10 +99,14 @@ export interface Report {
   target: string;
   abi: 'itanium' | 'microsoft';
   pointer_size: number;
+  endian: 'little' | 'big';
+  /** Bytes; absent when cache-line checks are off. */
+  cache_line?: number;
   records: LayoutRecord[];
 }
 
-export type AnalyzeResult = { ok: boolean; report: Report } | { error: string };
+/** With options.compare, `compare` is the layout for that target. */
+export type AnalyzeResult = { ok: boolean; report: Report; compare?: Report } | { error: string };
 
 export interface Options {
   lang: 'c' | 'c++';
@@ -80,6 +114,10 @@ export interface Options {
   vtables: boolean;
   expandSystem: boolean;
   args: string[];
+  /** Bytes, a power of two; 0 turns cache-line checks off. */
+  cacheLine: number;
+  /** A second target triple to compare with; vtables are off then. */
+  compare?: string;
 }
 
 /** [start, end) of a node or hole, in bits from the start of the record. */

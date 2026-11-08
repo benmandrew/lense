@@ -2,6 +2,8 @@
   "target": "x86_64-pc-windows-msvc19.33.0",
   "abi": "microsoft",
   "pointer_size": 8,
+  "endian": "little",
+  "cache_line": 64,
   "records": [
     {
       "name": "Ok",
@@ -16,6 +18,15 @@
       "nv_size": 4,
       "nv_align": 4,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "a"
+      },
+      "traits": {
+        "standard_layout": true,
+        "trivially_copyable": true,
+        "unique_object_representations": true
+      },
       "holes": [],
       "members": [
         {
@@ -23,7 +34,8 @@
           "offset": 0,
           "size": 4,
           "type": "int",
-          "name": "a"
+          "name": "a",
+          "align": 4
         }
       ],
       "vtables": []

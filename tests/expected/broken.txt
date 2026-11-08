@@ -1,3 +1,4 @@
-struct Ok  size 4, align 4
-  offset  size
-       0     4  int a
+struct Ok  size 4, align 4 from a
+  is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
+  offset  size  align
+       0     4      4  int a

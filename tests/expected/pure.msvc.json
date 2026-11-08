@@ -2,6 +2,8 @@
   "target": "x86_64-pc-windows-msvc19.33.0",
   "abi": "microsoft",
   "pointer_size": 8,
+  "endian": "little",
+  "cache_line": 64,
   "records": [
     {
       "name": "Shape",
@@ -16,6 +18,15 @@
       "nv_size": 8,
       "nv_align": 8,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "vfptr"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [],
       "members": [
         {
@@ -23,6 +34,7 @@
           "offset": 0,
           "size": 8,
           "type": "Shape",
+          "align": 8,
           "points_to": {
             "table": "vftable for Shape",
             "slot": 1
@@ -78,6 +90,15 @@
       "nv_size": 16,
       "nv_align": 8,
       "padding_bits": 0,
+      "align_source": {
+        "kind": "member",
+        "text": "base Shape"
+      },
+      "traits": {
+        "standard_layout": false,
+        "trivially_copyable": false,
+        "unique_object_representations": false
+      },
       "holes": [],
       "members": [
         {
@@ -87,12 +108,14 @@
           "size": 8,
           "tag": "struct",
           "type": "Shape",
+          "align": 8,
           "members": [
             {
               "kind": "vptr",
               "offset": 0,
               "size": 8,
               "type": "Shape",
+              "align": 8,
               "points_to": {
                 "table": "vftable for Shape in Square",
                 "slot": 1
@@ -105,7 +128,8 @@
           "offset": 8,
           "size": 8,
           "type": "double",
-          "name": "side"
+          "name": "side",
+          "align": 8
         }
       ],
       "vtables": [
