@@ -127,6 +127,7 @@
             npmDeps = pkgs.importNpmLock { npmRoot = ./web; };
             npmConfigHook = pkgs.importNpmLock.npmConfigHook;
             LENSE_WASM_DIR = "${wasm}/share/lense/web";
+            LENSE_EXAMPLES_DIR = ./tests/cases;
             installPhase = "cp -r dist $out";
           };
         });

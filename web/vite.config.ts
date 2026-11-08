@@ -1,6 +1,6 @@
 // The clang module (lense-web.{js,wasm,data}) comes from the Emscripten build
 // of lense. Set LENSE_WASM_DIR to use a build other than ../build-wasm.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 
@@ -39,9 +39,31 @@ function lenseModule(): Plugin {
   };
 }
 
+// The golden-test inputs, offered in the page's Example menu. Set
+// LENSE_EXAMPLES_DIR to read them from elsewhere.
+const examplesDir = resolve(import.meta.dirname, process.env.LENSE_EXAMPLES_DIR ?? '../tests/cases');
+
+function examples(): Plugin {
+  const id = 'virtual:examples';
+  return {
+    name: 'lense-examples',
+    resolveId: (source) => (source === id ? `\0${id}` : undefined),
+    load(resolved) {
+      if (resolved !== `\0${id}`) return;
+      this.addWatchFile(examplesDir);
+      const list = readdirSync(examplesDir).filter((f) => /\.(c|cpp)$/.test(f)).sort().map((f) => {
+        const path = resolve(examplesDir, f);
+        this.addWatchFile(path);
+        return { name: f, lang: f.endsWith('.c') ? 'c' : 'c++', code: readFileSync(path, 'utf8') };
+      });
+      return `export default ${JSON.stringify(list)};`;
+    },
+  };
+}
+
 export default defineConfig({
   base: './',
-  plugins: [lenseModule()],
+  plugins: [lenseModule(), examples()],
   worker: { format: 'es' },
   // CodeMirror with the C++ grammar is about 530 kB.
   build: { target: 'es2022', chunkSizeWarningLimit: 700 },

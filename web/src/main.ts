@@ -4,6 +4,7 @@ import { type Diagnostic, lintGutter, setDiagnostics } from '@codemirror/lint';
 import type { EditorState } from '@codemirror/state';
 import { tags as t } from '@lezer/highlight';
 import { basicSetup, EditorView } from 'codemirror';
+import EXAMPLES from 'virtual:examples';
 import type { FromWorker, ToWorker } from './protocol';
 import { render, tooltips } from './render';
 import type { Options } from './types';
@@ -54,6 +55,7 @@ interface Saved {
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const exampleBox = $<HTMLSelectElement>('example');
 const langBox = $<HTMLSelectElement>('lang');
 const stdBox = $<HTMLSelectElement>('std');
 const targetBox = $<HTMLSelectElement>('target');
@@ -213,8 +215,16 @@ function send(msg: ToWorker) {
   worker.postMessage(msg);
 }
 
+const examples = [{ name: 'sample', lang: 'c++' as const, code: SAMPLE }, ...EXAMPLES];
+
+/** Selects the example the editor holds, or "edited" if it holds none. */
+function syncExample(code: string) {
+  exampleBox.value = examples.find((e) => e.code === code)?.name ?? '';
+}
+
 async function analyze() {
   const s = current();
+  syncExample(s.code);
   send({ type: 'analyze', id: ++seq, code: s.code, options: options(s) });
   history.replaceState(null, '', `#${await pack(s)}`);
 }
@@ -288,7 +298,7 @@ async function start() {
   // Links saved before an option existed leave it out.
   const s: Saved = {
     code: SAMPLE, lang: 'c++', std: '', target: 'x86_64-linux-gnu', compare: '', cacheLine: 64,
-    vtables: true, expand: false, flags: '', ...saved,
+    vtables: false, expand: false, flags: '', ...saved,
   };
   view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: s.code } });
   clearTimeout(timer);
@@ -311,6 +321,22 @@ async function start() {
   syncVtables();
   expandBox.checked = s.expand;
   flagsBox.value = s.flags;
+
+  const edited = new Option('edited', '');
+  edited.hidden = true;
+  exampleBox.append(edited, ...examples.map((e) => new Option(e.name, e.name)));
+  syncExample(s.code);
+  exampleBox.onchange = () => {
+    const e = examples.find((x) => x.name === exampleBox.value);
+    if (!e) return;
+    if (langBox.value !== e.lang) {
+      langBox.value = e.lang;
+      fillStandards(e.lang, '');
+    }
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: e.code } });
+    clearTimeout(timer);
+    analyze();
+  };
 
   langBox.onchange = () => {
     fillStandards(langBox.value as Options['lang'], '');

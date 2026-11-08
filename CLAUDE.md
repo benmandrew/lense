@@ -22,7 +22,7 @@ emcmake cmake -G Ninja -S <llvm-project>/llvm -B build-wasm/llvm -C wasm/llvm-ca
 ninja -C build-wasm/llvm clangTooling clang-resource-headers
 emcmake cmake -G Ninja -S . -B build-wasm/lense -DCMAKE_BUILD_TYPE=MinSizeRel -DLLVM_DIR=$PWD/build-wasm/llvm/lib/cmake/llvm
 ninja -C build-wasm/lense && ctest --test-dir build-wasm/lense   # tests run build-wasm/lense/lense-node
-cd web && npm install && npm run dev        # LENSE_WASM_DIR defaults to ../build-wasm/lense/wasm
+cd web && npm install && npm run dev        # LENSE_WASM_DIR defaults to ../build-wasm/lense/wasm, LENSE_EXAMPLES_DIR to ../tests/cases
 ```
 
 ## Tests
