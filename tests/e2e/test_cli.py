@@ -134,6 +134,17 @@ class Cli(unittest.TestCase):
         plain = lense("--color=false", LINUX, path).stdout
         self.assertNotIn(" | ", plain)
 
+    def test_source_highlighting(self):
+        path = self.write("t.cpp", "struct A {\n  /* two\n     lines */\n"
+                          "  int a = 7; // seven\n};\n")
+        text = lense("--color", LINUX, "--source", path).stdout
+        blue, green, dim, reset = "\x1b[0;34m", "\x1b[0;32m", "\x1b[0;90m", "\x1b[0m"
+        self.assertIn(f"{blue}struct{reset} A {{", text)
+        self.assertIn(f"{blue}int{reset} a = {green}7{reset}; {dim}// seven{reset}", text)
+        # A block comment stays dim on both of its lines.
+        self.assertIn(f"{dim}/* two{reset}", text)
+        self.assertIn(f"{dim}     lines */{reset}", text)
+
     def test_source_in_json_only_when_asked(self):
         path = self.write("t.cpp", "\nstruct A { int a; };\n")
         a = records(lense("--json", LINUX, "--source", path).stdout)["A"]

@@ -13,6 +13,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/Lexer.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/Support/MemoryBuffer.h"
 
 #include <algorithm>
 #include <map>
@@ -139,6 +140,37 @@ public:
       R.source += '\n';
     }
     R.sourceLine = SM.getPresumedLoc(range.getBegin()).getLine();
+    highlight(R);
+  }
+
+  // Marks the keywords, literals and comments in R.source. The text is
+  // lexed again as its own buffer, because dedenting moved every offset.
+  void highlight(Record &R) const {
+    SourceManager &SM = C.getSourceManager();
+    FileID fid = SM.createFileID(
+        llvm::MemoryBuffer::getMemBufferCopy(R.source, "<source>"));
+    const LangOptions &LO = C.getLangOpts();
+    Lexer L(fid, SM.getBufferOrFake(fid), SM, LO);
+    L.SetCommentRetentionState(true);
+    Token tok;
+    for (L.LexFromRawLexer(tok); tok.isNot(tok::eof); L.LexFromRawLexer(tok)) {
+      SourceStyle style;
+      if (tok.is(tok::comment)) {
+        style = SourceStyle::Comment;
+      } else if (tok::isLiteral(tok.getKind())) {
+        style = SourceStyle::Literal;
+      } else if (tok.is(tok::raw_identifier)) {
+        // The preprocessor put every keyword in the table before parsing.
+        auto it = C.Idents.find(tok.getRawIdentifier());
+        if (it == C.Idents.end() || !it->getValue()->isKeyword(LO))
+          continue;
+        style = SourceStyle::Keyword;
+      } else {
+        continue;
+      }
+      unsigned begin = SM.getFileOffset(tok.getLocation());
+      R.sourceSpans.push_back({begin, begin + tok.getLength(), style});
+    }
   }
 
   bool msABI() const { return ms; }

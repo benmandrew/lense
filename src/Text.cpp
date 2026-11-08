@@ -110,15 +110,41 @@ private:
     llvm::StringRef(r.source).rtrim('\n').split(lines, '\n');
     std::string last = std::to_string(r.sourceLine + lines.size() - 1);
     size_t width = std::max<size_t>(4, last.size());
+    size_t at = 0;
     for (size_t i = 0; i < lines.size(); ++i) {
       std::string n = std::to_string(r.sourceLine + i);
       dim();
       os << std::string(width - n.size(), ' ') << n << " |";
       reset();
-      if (!lines[i].empty())
-        os << ' ' << lines[i];
+      if (!lines[i].empty()) {
+        os << ' ';
+        sourceText(r, lines[i], at);
+      }
       os << '\n';
+      at += lines[i].size() + 1;
     }
+  }
+
+  // One line of r.source that starts at offset `at`, with its highlights.
+  // A span can cross lines (a block comment), so clip it to this one.
+  void sourceText(const Record &r, llvm::StringRef line, size_t at) {
+    size_t pos = 0;
+    for (const SourceSpan &s : r.sourceSpans) {
+      if (s.end <= at || s.begin >= at + line.size())
+        continue;
+      size_t b = std::max<size_t>(s.begin, at) - at;
+      size_t e = std::min<size_t>(s.end, at + line.size()) - at;
+      os << line.slice(pos, b);
+      switch (s.style) {
+      case SourceStyle::Keyword: color(Color::BLUE); break;
+      case SourceStyle::Literal: color(Color::GREEN); break;
+      case SourceStyle::Comment: dim(); break;
+      }
+      os << line.slice(b, e);
+      reset();
+      pos = e;
+    }
+    os << line.drop_front(pos);
   }
 
   void color(Color c, bool b = false) { os.changeColor(c, b); }

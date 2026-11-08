@@ -101,6 +101,15 @@ struct VTable {
   std::optional<int64_t> vfptrOffset;
 };
 
+enum class SourceStyle { Keyword, Literal, Comment };
+
+// A highlighted run of Record::source, as byte offsets into it.
+struct SourceSpan {
+  unsigned begin = 0;
+  unsigned end = 0;
+  SourceStyle style = SourceStyle::Keyword;
+};
+
 struct Record {
   std::string name;
   std::string tag;
@@ -116,6 +125,7 @@ struct Record {
   // removed, and the line it starts on. Empty unless asked for.
   std::string source;
   unsigned sourceLine = 0;
+  std::vector<SourceSpan> sourceSpans; // In order, never overlapping.
   Node layout;
   std::vector<Hole> holes;
   std::vector<VTable> vtables;
