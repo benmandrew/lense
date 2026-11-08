@@ -11,6 +11,9 @@ oracle can check:
   so each function has a unique final overrider;
 - union members are trivial.
 
+Classes also get static data members, which must not appear in the layout:
+the oracle's sizeof and offset checks fail if lense counts one.
+
 Each virtual function Tc::mk returns 1000 * c + k and records the address of
 its complete object, so the oracle can call vtable slots and check both.
 """
@@ -56,6 +59,8 @@ class Class:
     vdtor: bool = False
     align: int = 0
     packed: bool = False
+    # (form, type): "decl" is a declaration only, "inline" an inline variable.
+    statics: List[Tuple[str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -181,6 +186,15 @@ def gen_field(rng: random.Random, p: Program, cls: Class, idx: int) -> Field:
     return f
 
 
+def gen_static(rng: random.Random, p: Program, cls: Class) -> Tuple[str, str]:
+    roll = rng.random()
+    if roll < 0.2:
+        # The class's own type is incomplete here, so only a declaration works.
+        return ("decl", cls.name)
+    t = rng.choice(SCALARS + [c.name for c in p.classes if c is not cls])
+    return ("inline" if roll < 0.6 else "decl", t)
+
+
 def generate(rng: random.Random, max_classes: int = 6) -> Program:
     p = Program([])
     for i in range(rng.randint(1, max_classes)):
@@ -206,6 +220,7 @@ def generate(rng: random.Random, max_classes: int = 6) -> Program:
         p.classes.pop()
         c.fields = [gen_field(rng, p, c, k) for k in range(rng.randint(0, 5))]
         p.classes.append(c)
+        c.statics = [gen_static(rng, p, c) for _ in range(rng.choice([0, 0, 0, 1, 2]))]
         if len(c.bases) >= 2:
             inherited = set()
             for b, _ in c.bases:
@@ -251,6 +266,12 @@ def render(p: Program) -> str:
             out.append(f"  virtual int m{k}() {{ lense_top = "
                        f"dynamic_cast<void *>(this); return {ident}; }}")
         out.extend(render_field(f) for f in c.fields)
+        for k, (form, t) in enumerate(c.statics):
+            sep = "" if t.endswith("*") else " "
+            if form == "inline":
+                out.append(f"  inline static {t}{sep}s{k}{{}};")
+            else:
+                out.append(f"  static {t}{sep}s{k};")
         out.append("};")
         out.append("")
     return "\n".join(out)
@@ -267,6 +288,7 @@ def shrink_candidates(p: Program):
             c.bases = [(b, v) for b, v in c.bases if b != gone]
             c.fields = [f for f in c.fields
                         if f.kind not in ("record", "record_array") or f.type != gone]
+            c.statics = [s for s in c.statics if s[1] != gone]
         yield q
     for i, c in enumerate(p.classes):
         for j in range(len(c.bases)):
@@ -280,6 +302,10 @@ def shrink_candidates(p: Program):
         for j in range(len(c.methods)):
             q = copy.deepcopy(p)
             del q.classes[i].methods[j]
+            yield q
+        for j in range(len(c.statics)):
+            q = copy.deepcopy(p)
+            del q.classes[i].statics[j]
             yield q
         for attr, empty in (("vdtor", False), ("align", 0), ("packed", False)):
             if getattr(c, attr) != empty:

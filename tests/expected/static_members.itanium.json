@@ -1,0 +1,207 @@
+{
+  "target": "x86_64-unknown-linux-gnu",
+  "abi": "itanium",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "Counter",
+      "tag": "struct",
+      "location": {
+        "line": 3,
+        "column": 8
+      },
+      "size": 8,
+      "align": 4,
+      "data_size": 8,
+      "nv_size": 8,
+      "nv_align": 4,
+      "padding_bits": 24,
+      "holes": [
+        {
+          "offset": 1,
+          "size": 3
+        }
+      ],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 1,
+          "type": "char",
+          "name": "tag"
+        },
+        {
+          "kind": "padding",
+          "offset": 1,
+          "size": 3
+        },
+        {
+          "kind": "field",
+          "offset": 4,
+          "size": 4,
+          "type": "int",
+          "name": "value"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "OnlyStatics",
+      "tag": "struct",
+      "location": {
+        "line": 12,
+        "column": 8
+      },
+      "size": 1,
+      "align": 1,
+      "data_size": 1,
+      "nv_size": 1,
+      "nv_align": 1,
+      "padding_bits": 8,
+      "holes": [
+        {
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "members": [
+        {
+          "kind": "padding",
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "Node",
+      "tag": "struct",
+      "location": {
+        "line": 18,
+        "column": 8
+      },
+      "size": 8,
+      "align": 8,
+      "data_size": 8,
+      "nv_size": 8,
+      "nv_align": 8,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 8,
+          "type": "Node *",
+          "name": "next"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "Registry<short>",
+      "tag": "struct",
+      "location": {
+        "line": 23,
+        "column": 30
+      },
+      "size": 2,
+      "align": 2,
+      "data_size": 2,
+      "nv_size": 2,
+      "nv_align": 2,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 2,
+          "type": "short",
+          "name": "item"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "Base",
+      "tag": "struct",
+      "location": {
+        "line": 31,
+        "column": 8
+      },
+      "size": 16,
+      "align": 8,
+      "data_size": 12,
+      "nv_size": 12,
+      "nv_align": 8,
+      "padding_bits": 32,
+      "holes": [
+        {
+          "offset": 12,
+          "size": 4
+        }
+      ],
+      "members": [
+        {
+          "kind": "vptr",
+          "offset": 0,
+          "size": 8,
+          "type": "Base",
+          "points_to": {
+            "table": "vtable for Base",
+            "slot": 2
+          }
+        },
+        {
+          "kind": "field",
+          "offset": 8,
+          "size": 4,
+          "type": "int",
+          "name": "x"
+        },
+        {
+          "kind": "padding",
+          "offset": 12,
+          "size": 4
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vtable for Base",
+          "table_starts": [
+            0
+          ],
+          "address_points": [
+            {
+              "index": 2,
+              "subobjects": [
+                {
+                  "type": "Base",
+                  "offset": 0
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "offset_to_top",
+              "value": 0
+            },
+            {
+              "index": 1,
+              "kind": "rtti",
+              "type": "Base"
+            },
+            {
+              "index": 2,
+              "kind": "function",
+              "function": "int Base::id() const"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

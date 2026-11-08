@@ -10,7 +10,7 @@ Dependencies come from `flake.nix` (nixpkgs-unstable pinned in `flake.lock`). Ni
 nix build                                   # build + full ctest in the sandbox
 nix develop                                 # then:
 cmake -S . -B build -G Ninja && ninja -C build
-ctest --test-dir build                      # goldens, e2e, fuzz (33 tests)
+ctest --test-dir build                      # goldens, e2e, fuzz (36 tests)
 LENSE_UPDATE=1 ctest --test-dir build -R '\.(itanium|msvc|text)$'   # regenerate goldens, review the diff
 tests/fuzz/fuzz.py --lense build/lense --cxx "$LENSE_ORACLE_CXX" --advisory-cxx "$LENSE_ADVISORY_CXX" --static-cxx "$LENSE_STATIC_CXX" --iterations 1000
 ```
