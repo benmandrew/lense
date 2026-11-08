@@ -83,9 +83,54 @@ public:
     if (!RD->getIdentifier())
       if (const TypedefNameDecl *TD = RD->getTypedefNameForAnonDecl())
         return TD->getQualifiedNameAsString();
+    // Clang prints a class declared in a function body without its scope,
+    // and a class nested in one without the function's template arguments,
+    // so `void f() { struct S; }` and a global S would both be "S". Name
+    // local classes from their function instead: "ns::f<int>(char)::S::In".
+    llvm::SmallVector<const RecordDecl *, 4> chain{RD};
+    const FunctionDecl *F = nullptr;
+    for (const DeclContext *P = RD->getDeclContext(); P; P = P->getParent()) {
+      if ((F = dyn_cast<FunctionDecl>(P)))
+        break;
+      const auto *Outer = dyn_cast<RecordDecl>(P);
+      if (!Outer)
+        break;
+      chain.push_back(Outer);
+    }
     std::string s;
     llvm::raw_string_ostream os(s);
-    RD->getNameForDiagnostic(os, policy, /*Qualified=*/true);
+    if (!F) {
+      RD->getNameForDiagnostic(os, policy, /*Qualified=*/true);
+      return s;
+    }
+    os << functionScope(F);
+    for (const RecordDecl *R : llvm::reverse(chain)) {
+      os << "::";
+      R->getNameForDiagnostic(os, policy, /*Qualified=*/false);
+    }
+    return s;
+  }
+
+  // "ns::C::f<int>(int, char)", the scope of classes local to f.
+  std::string functionScope(const FunctionDecl *FD) const {
+    std::string s;
+    llvm::raw_string_ostream os(s);
+    const auto *Owner = dyn_cast<CXXRecordDecl>(FD->getDeclContext());
+    if (Owner && Owner->isLambda()) {
+      // Two lambdas in one scope would both print as "(lambda)".
+      PresumedLoc PL = C.getSourceManager().getPresumedLoc(Owner->getLocation());
+      os << "(lambda at " << PL.getLine() << ':' << PL.getColumn() << ")::";
+      FD->getNameForDiagnostic(os, policy, /*Qualified=*/false);
+    } else if (Owner) {
+      os << recordName(Owner) << "::";
+      FD->getNameForDiagnostic(os, policy, /*Qualified=*/false);
+    } else {
+      FD->getNameForDiagnostic(os, policy, /*Qualified=*/true);
+    }
+    os << '(';
+    for (unsigned i = 0; i < FD->getNumParams(); ++i)
+      os << (i ? ", " : "") << typeName(FD->getParamDecl(i)->getType());
+    os << ')';
     return s;
   }
 

@@ -86,9 +86,9 @@ Base subobjects are shown at their *non-virtual size*. `Base` occupies 12 bytes 
 
 ## Testing
 
-`ctest --test-dir build` runs 30 tests across four layers. The Python scripts use only the standard library.
+`ctest --test-dir build` runs 33 tests across four layers. The Python scripts use only the standard library.
 
-**Golden files.** Inputs live in `tests/cases` and expected output in `tests/expected`, giving 27 tests. Each case runs as JSON on `x86_64-linux-gnu`, as JSON on `x86_64-pc-windows-msvc`, and as text on Linux. To regenerate the expected output, run `LENSE_UPDATE=1 ctest --test-dir build` and review the git diff.
+**Golden files.** Inputs live in `tests/cases` and expected output in `tests/expected`, giving 30 tests. Each case runs as JSON on `x86_64-linux-gnu`, as JSON on `x86_64-pc-windows-msvc`, and as text on Linux. To regenerate the expected output, run `LENSE_UPDATE=1 ctest --test-dir build` and review the git diff.
 
 **End-to-end tests.** `tests/e2e/test_cli.py` holds 20 tests that run the real binary. They cover file and stdin input, C and C++ modes, `--record`, `--no-vtables`, `--target` and `--` pass-through. They also check quote includes relative to the file, system-type collapsing, colour, exit codes, compile errors and binary input. The rest check determinism and that the text output agrees with the JSON.
 

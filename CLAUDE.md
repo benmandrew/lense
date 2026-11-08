@@ -10,7 +10,7 @@ Dependencies come from `flake.nix` (nixpkgs-unstable pinned in `flake.lock`). Ni
 nix build                                   # build + full ctest in the sandbox
 nix develop                                 # then:
 cmake -S . -B build -G Ninja && ninja -C build
-ctest --test-dir build                      # goldens, e2e, fuzz (30 tests)
+ctest --test-dir build                      # goldens, e2e, fuzz (33 tests)
 LENSE_UPDATE=1 ctest --test-dir build -R '\.(itanium|msvc|text)$'   # regenerate goldens, review the diff
 tests/fuzz/fuzz.py --lense build/lense --cxx "$LENSE_ORACLE_CXX" --advisory-cxx "$LENSE_ADVISORY_CXX" --static-cxx "$LENSE_STATIC_CXX" --iterations 1000
 ```
@@ -33,6 +33,7 @@ tests/fuzz/fuzz.py --lense build/lense --cxx "$LENSE_ORACLE_CXX" --advisory-cxx 
 - All offsets in the model are bits from the start of the outermost record. Padding is computed by sweeping occupied leaf ranges, then each hole is placed in the innermost non-empty record that contains it.
 - Base subobjects are sized by non-virtual size, `[[no_unique_address]]` fields by data size (tail padding may hold later members); empty ones are size 0.
 - Header search is baked in at configure time into `lense_config.h`: resource dir (next to libclang-cpp), macOS SDK (`$SDKROOT` or `xcrun`), and `LENSE_HOST_ARGS` copied from `$NIX_CC/nix-support/{libc-cflags,libcxx-cxxflags}`. Host flags are skipped for non-host `--target`s.
+- Classes local to a function are named from it (`f(int)::S`, `h<1>()::S::In`, `(lambda at L:C)::operator()()::S`), because clang prints them unqualified and names would clash.
 - LLVM already registers `--color`; reuse it via `llvm::WithColor` instead of defining another.
 - Vtable address points belong to the sub-table holding the RTTI entry before them; a table with no functions has its address point at the next table's start.
 - Tests pin targets (`x86_64-linux-gnu`, `x86_64-pc-windows-msvc`) and avoid `#include`s so goldens are host-independent.

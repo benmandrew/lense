@@ -1,0 +1,398 @@
+{
+  "target": "x86_64-unknown-linux-gnu",
+  "abi": "itanium",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "S",
+      "tag": "struct",
+      "location": {
+        "line": 4,
+        "column": 8
+      },
+      "size": 8,
+      "align": 8,
+      "data_size": 8,
+      "nv_size": 8,
+      "nv_align": 8,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 8,
+          "type": "long",
+          "name": "b"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "f()::S",
+      "tag": "struct",
+      "location": {
+        "line": 5,
+        "column": 19
+      },
+      "size": 4,
+      "align": 4,
+      "data_size": 4,
+      "nv_size": 4,
+      "nv_align": 4,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 4,
+          "type": "int",
+          "name": "a"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "T0",
+      "tag": "struct",
+      "location": {
+        "line": 7,
+        "column": 8
+      },
+      "size": 8,
+      "align": 8,
+      "data_size": 8,
+      "nv_size": 8,
+      "nv_align": 8,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "vptr",
+          "offset": 0,
+          "size": 8,
+          "type": "T0",
+          "points_to": {
+            "table": "vtable for T0",
+            "slot": 2
+          }
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vtable for T0",
+          "table_starts": [
+            0
+          ],
+          "address_points": [
+            {
+              "index": 2,
+              "subobjects": [
+                {
+                  "type": "T0",
+                  "offset": 0
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "offset_to_top",
+              "value": 0
+            },
+            {
+              "index": 1,
+              "kind": "rtti",
+              "type": "T0"
+            },
+            {
+              "index": 2,
+              "kind": "function",
+              "function": "int T0::m1()"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "T0::m1()::T0",
+      "tag": "struct",
+      "location": {
+        "line": 8,
+        "column": 29
+      },
+      "size": 1,
+      "align": 1,
+      "data_size": 1,
+      "nv_size": 1,
+      "nv_align": 1,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 1,
+          "type": "char",
+          "name": "c"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "h<1>()::S",
+      "tag": "struct",
+      "location": {
+        "line": 12,
+        "column": 35
+      },
+      "size": 1,
+      "align": 1,
+      "data_size": 1,
+      "nv_size": 1,
+      "nv_align": 1,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "record",
+          "role": "field",
+          "offset": 0,
+          "size": 1,
+          "tag": "struct",
+          "type": "struct In",
+          "name": "in",
+          "members": [
+            {
+              "kind": "field",
+              "offset": 0,
+              "size": 1,
+              "type": "char[1]",
+              "name": "c"
+            }
+          ]
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "h<1>()::S::In",
+      "tag": "struct",
+      "location": {
+        "line": 12,
+        "column": 46
+      },
+      "size": 1,
+      "align": 1,
+      "data_size": 1,
+      "nv_size": 1,
+      "nv_align": 1,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 1,
+          "type": "char[1]",
+          "name": "c"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "h<2>()::S",
+      "tag": "struct",
+      "location": {
+        "line": 12,
+        "column": 35
+      },
+      "size": 2,
+      "align": 1,
+      "data_size": 2,
+      "nv_size": 2,
+      "nv_align": 1,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "record",
+          "role": "field",
+          "offset": 0,
+          "size": 2,
+          "tag": "struct",
+          "type": "struct In",
+          "name": "in",
+          "members": [
+            {
+              "kind": "field",
+              "offset": 0,
+              "size": 2,
+              "type": "char[2]",
+              "name": "c"
+            }
+          ]
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "h<2>()::S::In",
+      "tag": "struct",
+      "location": {
+        "line": 12,
+        "column": 46
+      },
+      "size": 2,
+      "align": 1,
+      "data_size": 2,
+      "nv_size": 2,
+      "nv_align": 1,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 2,
+          "type": "char[2]",
+          "name": "c"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "(lambda at 16:11)::operator()()::L",
+      "tag": "struct",
+      "location": {
+        "line": 16,
+        "column": 23
+      },
+      "size": 2,
+      "align": 2,
+      "data_size": 2,
+      "nv_size": 2,
+      "nv_align": 2,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 2,
+          "type": "short",
+          "name": "s"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "(lambda at 17:11)::operator()()::L",
+      "tag": "struct",
+      "location": {
+        "line": 17,
+        "column": 23
+      },
+      "size": 4,
+      "align": 4,
+      "data_size": 4,
+      "nv_size": 4,
+      "nv_align": 4,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 4,
+          "type": "int",
+          "name": "i"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "Q",
+      "tag": "struct",
+      "location": {
+        "line": 19,
+        "column": 8
+      },
+      "size": 1,
+      "align": 1,
+      "data_size": 1,
+      "nv_size": 1,
+      "nv_align": 1,
+      "padding_bits": 8,
+      "holes": [
+        {
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "members": [
+        {
+          "kind": "padding",
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "Q::M",
+      "tag": "struct",
+      "location": {
+        "line": 19,
+        "column": 19
+      },
+      "size": 1,
+      "align": 1,
+      "data_size": 1,
+      "nv_size": 1,
+      "nv_align": 1,
+      "padding_bits": 8,
+      "holes": [
+        {
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "members": [
+        {
+          "kind": "padding",
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "Q::M::k(double)::K",
+      "tag": "struct",
+      "location": {
+        "line": 19,
+        "column": 46
+      },
+      "size": 4,
+      "align": 4,
+      "data_size": 4,
+      "nv_size": 4,
+      "nv_align": 4,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 4,
+          "type": "int",
+          "name": "z"
+        }
+      ],
+      "vtables": []
+    }
+  ]
+}

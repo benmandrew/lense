@@ -1,0 +1,59 @@
+struct S  size 8, align 8
+  offset  size
+       0     8  long b
+
+struct f()::S  size 4, align 4
+  offset  size
+       0     4  int a
+
+struct T0  size 8, align 8
+  offset  size
+       0     8  vptr  T0  -> vtable for T0[2]
+
+vtable for T0  3 entries
+   0  offset_to_top 0
+   1  RTTI T0
+      address point: T0 @0
+   2  int T0::m1()
+
+struct T0::m1()::T0  size 1, align 1
+  offset  size
+       0     1  char c
+
+struct h<1>()::S  size 1, align 1
+  offset  size
+       0     1  struct In in
+       0     1    char[1] c
+
+struct h<1>()::S::In  size 1, align 1
+  offset  size
+       0     1  char[1] c
+
+struct h<2>()::S  size 2, align 1
+  offset  size
+       0     2  struct In in
+       0     2    char[2] c
+
+struct h<2>()::S::In  size 2, align 1
+  offset  size
+       0     2  char[2] c
+
+struct (lambda at 16:11)::operator()()::L  size 2, align 2
+  offset  size
+       0     2  short s
+
+struct (lambda at 17:11)::operator()()::L  size 4, align 4
+  offset  size
+       0     4  int i
+
+struct Q  size 1, align 1, padding 1 byte
+  offset  size
+       0     1  padding
+
+struct Q::M  size 1, align 1, padding 1 byte
+  offset  size
+       0     1  padding
+
+struct Q::M::k(double)::K  size 4, align 4
+  offset  size
+       0     4  int z

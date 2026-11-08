@@ -4,7 +4,7 @@
 
 - LibTooling core: record layout tree, padding holes, Itanium vtable groups with address points and thunks, Microsoft vftables, vbptr and vtordisp.
 - Text and JSON printers, `--target`, `--record`, `--no-vtables`, `--expand-system`, stdin input.
-- Golden tests: 9 cases × (Itanium JSON, MSVC JSON, text) = 27 tests.
+- Golden tests: 10 cases × (Itanium JSON, MSVC JSON, text) = 30 tests.
 - Nix flake for all dependencies (LLVM 23.1.3, GCC 16.2 as advisory oracle); `nix build` runs the full suite.
 - E2E CLI tests (20) and fuzzing: runtime oracle, static cross-target checks, invariants, mutation robustness, shrinking. 1,500 oracle + 2,000 mutation cases clean.
 
