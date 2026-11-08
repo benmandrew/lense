@@ -1,0 +1,29 @@
+struct Empty  size 1, align 1, padding 1 byte
+  offset  size
+       0     1  padding
+
+struct Tag  size 1, align 1, padding 1 byte
+  offset  size
+       0     1  padding
+
+struct WithEmptyBase  size 4, align 4
+  offset  size
+       0     0  Empty  base (empty)
+       0     4  int x
+
+struct TwoEmpty  size 1, align 1
+  offset  size
+       0     0  Empty  base (empty)
+       0     0  Tag  base (empty)
+       0     1  char c
+
+struct NoUnique  size 4, align 4
+  offset  size
+       0     0  Empty e (empty)
+       0     4  int x
+
+struct Holder  size 8, align 4, padding 3 bytes
+  offset  size
+       0     1  Empty e (empty)
+       1     3  padding
+       4     4  int x

@@ -1,0 +1,243 @@
+{
+  "target": "x86_64-unknown-linux-gnu",
+  "abi": "itanium",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "A",
+      "tag": "struct",
+      "location": {
+        "line": 3,
+        "column": 8
+      },
+      "size": 16,
+      "align": 8,
+      "data_size": 12,
+      "nv_size": 12,
+      "nv_align": 8,
+      "padding_bits": 32,
+      "holes": [
+        {
+          "offset": 12,
+          "size": 4
+        }
+      ],
+      "members": [
+        {
+          "kind": "vptr",
+          "offset": 0,
+          "size": 8,
+          "type": "A",
+          "points_to": {
+            "table": "vtable for A",
+            "slot": 2
+          }
+        },
+        {
+          "kind": "field",
+          "offset": 8,
+          "size": 4,
+          "type": "int",
+          "name": "a"
+        },
+        {
+          "kind": "padding",
+          "offset": 12,
+          "size": 4
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vtable for A",
+          "table_starts": [
+            0
+          ],
+          "address_points": [
+            {
+              "index": 2,
+              "subobjects": [
+                {
+                  "type": "A",
+                  "offset": 0
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "offset_to_top",
+              "value": 0
+            },
+            {
+              "index": 1,
+              "kind": "rtti",
+              "type": "A"
+            },
+            {
+              "index": 2,
+              "kind": "function",
+              "function": "void A::f()"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "tag": "struct",
+      "location": {
+        "line": 4,
+        "column": 8
+      },
+      "size": 32,
+      "align": 8,
+      "data_size": 28,
+      "nv_size": 12,
+      "nv_align": 8,
+      "padding_bits": 64,
+      "holes": [
+        {
+          "offset": 12,
+          "size": 4
+        },
+        {
+          "offset": 28,
+          "size": 4
+        }
+      ],
+      "members": [
+        {
+          "kind": "vptr",
+          "offset": 0,
+          "size": 8,
+          "type": "B",
+          "points_to": {
+            "table": "vtable for B",
+            "slot": 3
+          }
+        },
+        {
+          "kind": "field",
+          "offset": 8,
+          "size": 4,
+          "type": "int",
+          "name": "b"
+        },
+        {
+          "kind": "padding",
+          "offset": 12,
+          "size": 4
+        },
+        {
+          "kind": "record",
+          "role": "virtual_base",
+          "offset": 16,
+          "size": 12,
+          "tag": "struct",
+          "type": "A",
+          "members": [
+            {
+              "kind": "vptr",
+              "offset": 16,
+              "size": 8,
+              "type": "A",
+              "points_to": {
+                "table": "vtable for B",
+                "slot": 7
+              }
+            },
+            {
+              "kind": "field",
+              "offset": 24,
+              "size": 4,
+              "type": "int",
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "padding",
+          "offset": 28,
+          "size": 4
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vtable for B",
+          "table_starts": [
+            0,
+            4
+          ],
+          "address_points": [
+            {
+              "index": 3,
+              "subobjects": [
+                {
+                  "type": "B",
+                  "offset": 0
+                }
+              ]
+            },
+            {
+              "index": 7,
+              "subobjects": [
+                {
+                  "type": "A",
+                  "offset": 16
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "vbase_offset",
+              "value": 16
+            },
+            {
+              "index": 1,
+              "kind": "offset_to_top",
+              "value": 0
+            },
+            {
+              "index": 2,
+              "kind": "rtti",
+              "type": "B"
+            },
+            {
+              "index": 3,
+              "kind": "function",
+              "function": "void B::f()"
+            },
+            {
+              "index": 4,
+              "kind": "vcall_offset",
+              "value": -16
+            },
+            {
+              "index": 5,
+              "kind": "offset_to_top",
+              "value": -16
+            },
+            {
+              "index": 6,
+              "kind": "rtti",
+              "type": "B"
+            },
+            {
+              "index": 7,
+              "kind": "function",
+              "function": "void B::f()",
+              "thunk": {
+                "this_adjustment": 0,
+                "vcall_offset_offset": -24,
+                "virtual_this_adjustment": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "target": "x86_64-unknown-linux-gnu",
+  "abi": "itanium",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "Flags",
+      "tag": "struct",
+      "location": {
+        "line": 2,
+        "column": 8
+      },
+      "size": 16,
+      "align": 8,
+      "data_size": 16,
+      "nv_size": 16,
+      "nv_align": 8,
+      "padding_bits": 74,
+      "holes": [
+        {
+          "offset": 5,
+          "bit_offset": 46,
+          "bit_size": 18
+        },
+        {
+          "offset": 9,
+          "size": 7
+        }
+      ],
+      "members": [
+        {
+          "kind": "bitfield",
+          "offset": 0,
+          "bit_offset": 0,
+          "bit_size": 1,
+          "type": "unsigned int",
+          "name": "ready"
+        },
+        {
+          "kind": "bitfield",
+          "offset": 0,
+          "bit_offset": 1,
+          "bit_size": 3,
+          "type": "unsigned int",
+          "name": "mode"
+        },
+        {
+          "kind": "bitfield",
+          "offset": 0,
+          "bit_offset": 4,
+          "bit_size": 2,
+          "type": "unsigned int"
+        },
+        {
+          "kind": "bitfield",
+          "offset": 0,
+          "bit_offset": 6,
+          "bit_size": 40,
+          "type": "unsigned long long",
+          "name": "wide"
+        },
+        {
+          "kind": "padding",
+          "offset": 5,
+          "bit_offset": 46,
+          "bit_size": 18
+        },
+        {
+          "kind": "bitfield",
+          "offset": 8,
+          "bit_offset": 64,
+          "bit_size": 0,
+          "type": "int"
+        },
+        {
+          "kind": "field",
+          "offset": 8,
+          "size": 1,
+          "type": "char",
+          "name": "tail"
+        },
+        {
+          "kind": "padding",
+          "offset": 9,
+          "size": 7
+        }
+      ],
+      "vtables": []
+    }
+  ]
+}

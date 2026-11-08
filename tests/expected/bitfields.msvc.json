@@ -1,0 +1,100 @@
+{
+  "target": "x86_64-pc-windows-msvc19.33.0",
+  "abi": "microsoft",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "Flags",
+      "tag": "struct",
+      "location": {
+        "line": 2,
+        "column": 8
+      },
+      "size": 24,
+      "align": 8,
+      "data_size": 24,
+      "nv_size": 24,
+      "nv_align": 8,
+      "padding_bits": 138,
+      "holes": [
+        {
+          "offset": 0,
+          "bit_offset": 6,
+          "bit_size": 58
+        },
+        {
+          "offset": 13,
+          "size": 3
+        },
+        {
+          "offset": 17,
+          "size": 7
+        }
+      ],
+      "members": [
+        {
+          "kind": "bitfield",
+          "offset": 0,
+          "bit_offset": 0,
+          "bit_size": 1,
+          "type": "unsigned int",
+          "name": "ready"
+        },
+        {
+          "kind": "bitfield",
+          "offset": 0,
+          "bit_offset": 1,
+          "bit_size": 3,
+          "type": "unsigned int",
+          "name": "mode"
+        },
+        {
+          "kind": "bitfield",
+          "offset": 0,
+          "bit_offset": 4,
+          "bit_size": 2,
+          "type": "unsigned int"
+        },
+        {
+          "kind": "padding",
+          "offset": 0,
+          "bit_offset": 6,
+          "bit_size": 58
+        },
+        {
+          "kind": "bitfield",
+          "offset": 8,
+          "bit_offset": 64,
+          "bit_size": 40,
+          "type": "unsigned long long",
+          "name": "wide"
+        },
+        {
+          "kind": "padding",
+          "offset": 13,
+          "size": 3
+        },
+        {
+          "kind": "bitfield",
+          "offset": 16,
+          "bit_offset": 128,
+          "bit_size": 0,
+          "type": "int"
+        },
+        {
+          "kind": "field",
+          "offset": 16,
+          "size": 1,
+          "type": "char",
+          "name": "tail"
+        },
+        {
+          "kind": "padding",
+          "offset": 17,
+          "size": 7
+        }
+      ],
+      "vtables": []
+    }
+  ]
+}

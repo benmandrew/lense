@@ -1,0 +1,245 @@
+{
+  "target": "x86_64-pc-windows-msvc19.33.0",
+  "abi": "microsoft",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "Empty",
+      "tag": "struct",
+      "location": {
+        "line": 2,
+        "column": 8
+      },
+      "size": 1,
+      "align": 1,
+      "data_size": 0,
+      "nv_size": 0,
+      "nv_align": 1,
+      "padding_bits": 8,
+      "holes": [
+        {
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "members": [
+        {
+          "kind": "padding",
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "Tag",
+      "tag": "struct",
+      "location": {
+        "line": 3,
+        "column": 8
+      },
+      "size": 1,
+      "align": 1,
+      "data_size": 0,
+      "nv_size": 0,
+      "nv_align": 1,
+      "padding_bits": 8,
+      "holes": [
+        {
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "members": [
+        {
+          "kind": "padding",
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "WithEmptyBase",
+      "tag": "struct",
+      "location": {
+        "line": 4,
+        "column": 8
+      },
+      "size": 4,
+      "align": 4,
+      "data_size": 4,
+      "nv_size": 4,
+      "nv_align": 4,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "record",
+          "role": "base",
+          "offset": 0,
+          "size": 0,
+          "tag": "struct",
+          "type": "Empty",
+          "empty": true,
+          "members": []
+        },
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 4,
+          "type": "int",
+          "name": "x"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "TwoEmpty",
+      "tag": "struct",
+      "location": {
+        "line": 5,
+        "column": 8
+      },
+      "size": 2,
+      "align": 1,
+      "data_size": 2,
+      "nv_size": 2,
+      "nv_align": 1,
+      "padding_bits": 8,
+      "holes": [
+        {
+          "offset": 0,
+          "size": 1
+        }
+      ],
+      "members": [
+        {
+          "kind": "record",
+          "role": "base",
+          "offset": 0,
+          "size": 0,
+          "tag": "struct",
+          "type": "Empty",
+          "empty": true,
+          "members": []
+        },
+        {
+          "kind": "padding",
+          "offset": 0,
+          "size": 1
+        },
+        {
+          "kind": "record",
+          "role": "base",
+          "offset": 1,
+          "size": 0,
+          "tag": "struct",
+          "type": "Tag",
+          "empty": true,
+          "members": []
+        },
+        {
+          "kind": "field",
+          "offset": 1,
+          "size": 1,
+          "type": "char",
+          "name": "c"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "NoUnique",
+      "tag": "struct",
+      "location": {
+        "line": 6,
+        "column": 8
+      },
+      "size": 8,
+      "align": 4,
+      "data_size": 8,
+      "nv_size": 8,
+      "nv_align": 4,
+      "padding_bits": 24,
+      "holes": [
+        {
+          "offset": 1,
+          "size": 3
+        }
+      ],
+      "members": [
+        {
+          "kind": "record",
+          "role": "field",
+          "offset": 0,
+          "size": 1,
+          "tag": "struct",
+          "type": "Empty",
+          "name": "e",
+          "empty": true,
+          "members": []
+        },
+        {
+          "kind": "padding",
+          "offset": 1,
+          "size": 3
+        },
+        {
+          "kind": "field",
+          "offset": 4,
+          "size": 4,
+          "type": "int",
+          "name": "x"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "Holder",
+      "tag": "struct",
+      "location": {
+        "line": 7,
+        "column": 8
+      },
+      "size": 8,
+      "align": 4,
+      "data_size": 8,
+      "nv_size": 8,
+      "nv_align": 4,
+      "padding_bits": 24,
+      "holes": [
+        {
+          "offset": 1,
+          "size": 3
+        }
+      ],
+      "members": [
+        {
+          "kind": "record",
+          "role": "field",
+          "offset": 0,
+          "size": 1,
+          "tag": "struct",
+          "type": "Empty",
+          "name": "e",
+          "empty": true,
+          "members": []
+        },
+        {
+          "kind": "padding",
+          "offset": 1,
+          "size": 3
+        },
+        {
+          "kind": "field",
+          "offset": 4,
+          "size": 4,
+          "type": "int",
+          "name": "x"
+        }
+      ],
+      "vtables": []
+    }
+  ]
+}

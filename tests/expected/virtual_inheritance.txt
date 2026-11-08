@@ -1,0 +1,111 @@
+struct A  size 16, align 8, data size 12, padding 4 bytes
+  offset  size
+       0     8  vptr  A  -> vtable for A[2]
+       8     4  int a
+      12     4  padding
+
+vtable for A  5 entries
+   0  offset_to_top 0
+   1  RTTI A
+      address point: A @0
+   2  A::~A() [complete]
+   3  A::~A() [deleting]
+   4  A *A::clone() const
+
+struct B  size 32, align 8, data size 28, padding 8 bytes
+  offset  size
+       0     8  vptr  B  -> vtable for B[3]
+       8     4  int b
+      12     4  padding
+      16    12  A  virtual base
+      16     8    vptr  A  -> vtable for B[10]
+      24     4    int a
+      28     4  padding
+
+vtable for B  13 entries
+    0  vbase_offset 16
+    1  offset_to_top 0
+    2  RTTI B
+       address point: B @0
+    3  void B::g()
+    4  B::~B() [complete]
+    5  B::~B() [deleting]
+
+    6  vcall_offset 0
+    7  vcall_offset -16
+    8  offset_to_top -16
+    9  RTTI B
+       address point: A @16
+   10  B::~B() [complete] [thunk: this +0, vcall offset at -24]
+   11  B::~B() [deleting] [thunk: this +0, vcall offset at -24]
+   12  A *A::clone() const
+
+struct C  size 32, align 8, data size 28, padding 8 bytes
+  offset  size
+       0     8  vptr  C  -> vtable for C[3]
+       8     4  int c
+      12     4  padding
+      16    12  A  virtual base
+      16     8    vptr  A  -> vtable for C[10]
+      24     4    int a
+      28     4  padding
+
+vtable for C  13 entries
+    0  vbase_offset 16
+    1  offset_to_top 0
+    2  RTTI C
+       address point: C @0
+    3  C *C::clone() const
+    4  C::~C() [complete]
+    5  C::~C() [deleting]
+
+    6  vcall_offset -16
+    7  vcall_offset -16
+    8  offset_to_top -16
+    9  RTTI C
+       address point: A @16
+   10  C::~C() [complete] [thunk: this +0, vcall offset at -24]
+   11  C::~C() [deleting] [thunk: this +0, vcall offset at -24]
+   12  C *C::clone() const [thunk: this +0, vcall offset at -32, vbase offset at -24]
+
+struct D  size 48, align 8, data size 44, padding 8 bytes
+  offset  size
+       0    12  B  primary base
+       0     8    vptr  B  -> vtable for D[3]
+       8     4    int b
+      12     4  padding
+      16    12  C  base
+      16     8    vptr  C  -> vtable for D[10]
+      24     4    int c
+      28     4  int d
+      32    12  A  virtual base
+      32     8    vptr  A  -> vtable for D[17]
+      40     4    int a
+      44     4  padding
+
+vtable for D  20 entries
+    0  vbase_offset 32
+    1  offset_to_top 0
+    2  RTTI D
+       address point: B @0, D @0
+    3  void D::g()
+    4  D::~D() [complete]
+    5  D::~D() [deleting]
+    6  D *D::clone() const
+
+    7  vbase_offset 16
+    8  offset_to_top -16
+    9  RTTI D
+       address point: C @16
+   10  D *D::clone() const [thunk: this -16, return +16]
+   11  D::~D() [complete] [thunk: this -16]
+   12  D::~D() [deleting] [thunk: this -16]
+
+   13  vcall_offset -32
+   14  vcall_offset -32
+   15  offset_to_top -32
+   16  RTTI D
+       address point: A @32
+   17  D::~D() [complete] [thunk: this +0, vcall offset at -24]
+   18  D::~D() [deleting] [thunk: this +0, vcall offset at -24]
+   19  D *D::clone() const [thunk: this +0, vcall offset at -32, vbase offset at -24]

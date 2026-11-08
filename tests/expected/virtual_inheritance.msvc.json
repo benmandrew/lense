@@ -1,0 +1,574 @@
+{
+  "target": "x86_64-pc-windows-msvc19.33.0",
+  "abi": "microsoft",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "A",
+      "tag": "struct",
+      "location": {
+        "line": 2,
+        "column": 8
+      },
+      "size": 16,
+      "align": 8,
+      "data_size": 16,
+      "nv_size": 16,
+      "nv_align": 8,
+      "padding_bits": 32,
+      "holes": [
+        {
+          "offset": 12,
+          "size": 4
+        }
+      ],
+      "members": [
+        {
+          "kind": "vptr",
+          "offset": 0,
+          "size": 8,
+          "type": "A",
+          "points_to": {
+            "table": "vftable for A",
+            "slot": 1
+          }
+        },
+        {
+          "kind": "field",
+          "offset": 8,
+          "size": 4,
+          "type": "int",
+          "name": "a"
+        },
+        {
+          "kind": "padding",
+          "offset": 12,
+          "size": 4
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vftable for A",
+          "vfptr_offset": 0,
+          "address_points": [
+            {
+              "index": 1,
+              "subobjects": [
+                {
+                  "type": "A",
+                  "offset": 0
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "rtti",
+              "type": "A"
+            },
+            {
+              "index": 1,
+              "kind": "deleting_dtor",
+              "function": "A::~A()"
+            },
+            {
+              "index": 2,
+              "kind": "function",
+              "function": "A *A::clone() const"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "tag": "struct",
+      "location": {
+        "line": 3,
+        "column": 8
+      },
+      "size": 40,
+      "align": 8,
+      "data_size": 40,
+      "nv_size": 24,
+      "nv_align": 8,
+      "padding_bits": 64,
+      "holes": [
+        {
+          "offset": 20,
+          "size": 4
+        },
+        {
+          "offset": 36,
+          "size": 4
+        }
+      ],
+      "members": [
+        {
+          "kind": "vptr",
+          "offset": 0,
+          "size": 8,
+          "type": "B",
+          "points_to": {
+            "table": "vftable for B",
+            "slot": 1
+          }
+        },
+        {
+          "kind": "vbptr",
+          "offset": 8,
+          "size": 8,
+          "type": "B"
+        },
+        {
+          "kind": "field",
+          "offset": 16,
+          "size": 4,
+          "type": "int",
+          "name": "b"
+        },
+        {
+          "kind": "padding",
+          "offset": 20,
+          "size": 4
+        },
+        {
+          "kind": "record",
+          "role": "virtual_base",
+          "offset": 24,
+          "size": 16,
+          "tag": "struct",
+          "type": "A",
+          "members": [
+            {
+              "kind": "vptr",
+              "offset": 24,
+              "size": 8,
+              "type": "A",
+              "points_to": {
+                "table": "vftable for A in B",
+                "slot": 1
+              }
+            },
+            {
+              "kind": "field",
+              "offset": 32,
+              "size": 4,
+              "type": "int",
+              "name": "a"
+            },
+            {
+              "kind": "padding",
+              "offset": 36,
+              "size": 4
+            }
+          ]
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vftable for B",
+          "vfptr_offset": 0,
+          "address_points": [
+            {
+              "index": 1,
+              "subobjects": [
+                {
+                  "type": "B",
+                  "offset": 0
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "rtti",
+              "type": "B"
+            },
+            {
+              "index": 1,
+              "kind": "function",
+              "function": "void B::g()"
+            }
+          ]
+        },
+        {
+          "name": "vftable for A in B",
+          "vfptr_offset": 24,
+          "address_points": [
+            {
+              "index": 1,
+              "subobjects": [
+                {
+                  "type": "B",
+                  "offset": 24
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "rtti",
+              "type": "B"
+            },
+            {
+              "index": 1,
+              "kind": "deleting_dtor",
+              "function": "B::~B()"
+            },
+            {
+              "index": 2,
+              "kind": "function",
+              "function": "A *A::clone() const"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "C",
+      "tag": "struct",
+      "location": {
+        "line": 4,
+        "column": 8
+      },
+      "size": 32,
+      "align": 8,
+      "data_size": 32,
+      "nv_size": 16,
+      "nv_align": 8,
+      "padding_bits": 64,
+      "holes": [
+        {
+          "offset": 12,
+          "size": 4
+        },
+        {
+          "offset": 28,
+          "size": 4
+        }
+      ],
+      "members": [
+        {
+          "kind": "vbptr",
+          "offset": 0,
+          "size": 8,
+          "type": "C"
+        },
+        {
+          "kind": "field",
+          "offset": 8,
+          "size": 4,
+          "type": "int",
+          "name": "c"
+        },
+        {
+          "kind": "padding",
+          "offset": 12,
+          "size": 4
+        },
+        {
+          "kind": "record",
+          "role": "virtual_base",
+          "offset": 16,
+          "size": 16,
+          "tag": "struct",
+          "type": "A",
+          "members": [
+            {
+              "kind": "vptr",
+              "offset": 16,
+              "size": 8,
+              "type": "A",
+              "points_to": {
+                "table": "vftable for A in C",
+                "slot": 1
+              }
+            },
+            {
+              "kind": "field",
+              "offset": 24,
+              "size": 4,
+              "type": "int",
+              "name": "a"
+            },
+            {
+              "kind": "padding",
+              "offset": 28,
+              "size": 4
+            }
+          ]
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vftable for A in C",
+          "vfptr_offset": 16,
+          "address_points": [
+            {
+              "index": 1,
+              "subobjects": [
+                {
+                  "type": "C",
+                  "offset": 16
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "rtti",
+              "type": "C"
+            },
+            {
+              "index": 1,
+              "kind": "deleting_dtor",
+              "function": "C::~C()"
+            },
+            {
+              "index": 2,
+              "kind": "function",
+              "function": "C *C::clone() const",
+              "thunk": {
+                "this_adjustment": 0,
+                "virtual_return_adjustment": true
+              }
+            },
+            {
+              "index": 3,
+              "kind": "function",
+              "function": "C *C::clone() const"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "D",
+      "tag": "struct",
+      "location": {
+        "line": 5,
+        "column": 8
+      },
+      "size": 64,
+      "align": 8,
+      "data_size": 64,
+      "nv_size": 48,
+      "nv_align": 8,
+      "padding_bits": 128,
+      "holes": [
+        {
+          "offset": 20,
+          "size": 4
+        },
+        {
+          "offset": 36,
+          "size": 4
+        },
+        {
+          "offset": 44,
+          "size": 4
+        },
+        {
+          "offset": 60,
+          "size": 4
+        }
+      ],
+      "members": [
+        {
+          "kind": "record",
+          "role": "primary_base",
+          "offset": 0,
+          "size": 24,
+          "tag": "struct",
+          "type": "B",
+          "members": [
+            {
+              "kind": "vptr",
+              "offset": 0,
+              "size": 8,
+              "type": "B",
+              "points_to": {
+                "table": "vftable for B in D",
+                "slot": 1
+              }
+            },
+            {
+              "kind": "vbptr",
+              "offset": 8,
+              "size": 8,
+              "type": "B"
+            },
+            {
+              "kind": "field",
+              "offset": 16,
+              "size": 4,
+              "type": "int",
+              "name": "b"
+            },
+            {
+              "kind": "padding",
+              "offset": 20,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "kind": "record",
+          "role": "base",
+          "offset": 24,
+          "size": 16,
+          "tag": "struct",
+          "type": "C",
+          "members": [
+            {
+              "kind": "vbptr",
+              "offset": 24,
+              "size": 8,
+              "type": "C"
+            },
+            {
+              "kind": "field",
+              "offset": 32,
+              "size": 4,
+              "type": "int",
+              "name": "c"
+            },
+            {
+              "kind": "padding",
+              "offset": 36,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "kind": "field",
+          "offset": 40,
+          "size": 4,
+          "type": "int",
+          "name": "d"
+        },
+        {
+          "kind": "padding",
+          "offset": 44,
+          "size": 4
+        },
+        {
+          "kind": "record",
+          "role": "virtual_base",
+          "offset": 48,
+          "size": 16,
+          "tag": "struct",
+          "type": "A",
+          "members": [
+            {
+              "kind": "vptr",
+              "offset": 48,
+              "size": 8,
+              "type": "A",
+              "points_to": {
+                "table": "vftable for A in C in D",
+                "slot": 1
+              }
+            },
+            {
+              "kind": "field",
+              "offset": 56,
+              "size": 4,
+              "type": "int",
+              "name": "a"
+            },
+            {
+              "kind": "padding",
+              "offset": 60,
+              "size": 4
+            }
+          ]
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vftable for B in D",
+          "vfptr_offset": 0,
+          "address_points": [
+            {
+              "index": 1,
+              "subobjects": [
+                {
+                  "type": "D",
+                  "offset": 0
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "rtti",
+              "type": "D"
+            },
+            {
+              "index": 1,
+              "kind": "function",
+              "function": "void D::g()"
+            }
+          ]
+        },
+        {
+          "name": "vftable for A in C in D",
+          "vfptr_offset": 48,
+          "address_points": [
+            {
+              "index": 1,
+              "subobjects": [
+                {
+                  "type": "D",
+                  "offset": 48
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "rtti",
+              "type": "D"
+            },
+            {
+              "index": 1,
+              "kind": "deleting_dtor",
+              "function": "D::~D()"
+            },
+            {
+              "index": 2,
+              "kind": "function",
+              "function": "D *D::clone() const",
+              "thunk": {
+                "this_adjustment": 0,
+                "virtual_return_adjustment": true
+              }
+            },
+            {
+              "index": 3,
+              "kind": "function",
+              "function": "D *D::clone() const",
+              "thunk": {
+                "this_adjustment": 0,
+                "return_adjustment": 24
+              }
+            },
+            {
+              "index": 4,
+              "kind": "function",
+              "function": "D *D::clone() const"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

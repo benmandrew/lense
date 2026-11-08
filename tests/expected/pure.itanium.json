@@ -1,0 +1,175 @@
+{
+  "target": "x86_64-unknown-linux-gnu",
+  "abi": "itanium",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "Shape",
+      "tag": "struct",
+      "location": {
+        "line": 2,
+        "column": 8
+      },
+      "size": 8,
+      "align": 8,
+      "data_size": 8,
+      "nv_size": 8,
+      "nv_align": 8,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "vptr",
+          "offset": 0,
+          "size": 8,
+          "type": "Shape",
+          "points_to": {
+            "table": "vtable for Shape",
+            "slot": 2
+          }
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vtable for Shape",
+          "table_starts": [
+            0
+          ],
+          "address_points": [
+            {
+              "index": 2,
+              "subobjects": [
+                {
+                  "type": "Shape",
+                  "offset": 0
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "offset_to_top",
+              "value": 0
+            },
+            {
+              "index": 1,
+              "kind": "rtti",
+              "type": "Shape"
+            },
+            {
+              "index": 2,
+              "kind": "complete_dtor",
+              "function": "Shape::~Shape()"
+            },
+            {
+              "index": 3,
+              "kind": "deleting_dtor",
+              "function": "Shape::~Shape()"
+            },
+            {
+              "index": 4,
+              "kind": "function",
+              "function": "double Shape::area() const",
+              "pure": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Square",
+      "tag": "struct",
+      "location": {
+        "line": 3,
+        "column": 8
+      },
+      "size": 16,
+      "align": 8,
+      "data_size": 16,
+      "nv_size": 16,
+      "nv_align": 8,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "record",
+          "role": "primary_base",
+          "offset": 0,
+          "size": 8,
+          "tag": "struct",
+          "type": "Shape",
+          "members": [
+            {
+              "kind": "vptr",
+              "offset": 0,
+              "size": 8,
+              "type": "Shape",
+              "points_to": {
+                "table": "vtable for Square",
+                "slot": 2
+              }
+            }
+          ]
+        },
+        {
+          "kind": "field",
+          "offset": 8,
+          "size": 8,
+          "type": "double",
+          "name": "side"
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vtable for Square",
+          "table_starts": [
+            0
+          ],
+          "address_points": [
+            {
+              "index": 2,
+              "subobjects": [
+                {
+                  "type": "Shape",
+                  "offset": 0
+                },
+                {
+                  "type": "Square",
+                  "offset": 0
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "offset_to_top",
+              "value": 0
+            },
+            {
+              "index": 1,
+              "kind": "rtti",
+              "type": "Square"
+            },
+            {
+              "index": 2,
+              "kind": "complete_dtor",
+              "function": "Square::~Square()"
+            },
+            {
+              "index": 3,
+              "kind": "deleting_dtor",
+              "function": "Square::~Square()"
+            },
+            {
+              "index": 4,
+              "kind": "function",
+              "function": "double Square::area() const"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

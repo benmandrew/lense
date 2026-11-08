@@ -1,0 +1,147 @@
+{
+  "target": "x86_64-pc-windows-msvc19.33.0",
+  "abi": "microsoft",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "Shape",
+      "tag": "struct",
+      "location": {
+        "line": 2,
+        "column": 8
+      },
+      "size": 8,
+      "align": 8,
+      "data_size": 8,
+      "nv_size": 8,
+      "nv_align": 8,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "vptr",
+          "offset": 0,
+          "size": 8,
+          "type": "Shape",
+          "points_to": {
+            "table": "vftable for Shape",
+            "slot": 1
+          }
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vftable for Shape",
+          "vfptr_offset": 0,
+          "address_points": [
+            {
+              "index": 1,
+              "subobjects": [
+                {
+                  "type": "Shape",
+                  "offset": 0
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "rtti",
+              "type": "Shape"
+            },
+            {
+              "index": 1,
+              "kind": "deleting_dtor",
+              "function": "Shape::~Shape()"
+            },
+            {
+              "index": 2,
+              "kind": "function",
+              "function": "double Shape::area() const",
+              "pure": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Square",
+      "tag": "struct",
+      "location": {
+        "line": 3,
+        "column": 8
+      },
+      "size": 16,
+      "align": 8,
+      "data_size": 16,
+      "nv_size": 16,
+      "nv_align": 8,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "record",
+          "role": "primary_base",
+          "offset": 0,
+          "size": 8,
+          "tag": "struct",
+          "type": "Shape",
+          "members": [
+            {
+              "kind": "vptr",
+              "offset": 0,
+              "size": 8,
+              "type": "Shape",
+              "points_to": {
+                "table": "vftable for Shape in Square",
+                "slot": 1
+              }
+            }
+          ]
+        },
+        {
+          "kind": "field",
+          "offset": 8,
+          "size": 8,
+          "type": "double",
+          "name": "side"
+        }
+      ],
+      "vtables": [
+        {
+          "name": "vftable for Shape in Square",
+          "vfptr_offset": 0,
+          "address_points": [
+            {
+              "index": 1,
+              "subobjects": [
+                {
+                  "type": "Square",
+                  "offset": 0
+                }
+              ]
+            }
+          ],
+          "entries": [
+            {
+              "index": 0,
+              "kind": "rtti",
+              "type": "Square"
+            },
+            {
+              "index": 1,
+              "kind": "deleting_dtor",
+              "function": "Square::~Square()"
+            },
+            {
+              "index": 2,
+              "kind": "function",
+              "function": "double Square::area() const"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

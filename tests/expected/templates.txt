@@ -1,0 +1,38 @@
+struct Box<char>  size 16, align 8, data size 9, padding 7 bytes
+  offset  size
+       0     8  vptr  Box<char>  -> vtable for Box<char>[2]
+       8     1  char value
+       9     7  padding
+
+vtable for Box<char>  4 entries
+   0  offset_to_top 0
+   1  RTTI Box<char>
+      address point: Box<char> @0
+   2  Box<char>::~Box() [complete]
+   3  Box<char>::~Box() [deleting]
+
+struct Box<double>  size 16, align 8
+  offset  size
+       0     8  vptr  Box<double>  -> vtable for Box<double>[2]
+       8     8  double value
+
+vtable for Box<double>  4 entries
+   0  offset_to_top 0
+   1  RTTI Box<double>
+      address point: Box<double> @0
+   2  Box<double>::~Box() [complete]
+   3  Box<double>::~Box() [deleting]
+
+struct Array<short, 3>  size 6, align 2
+  offset  size
+       0     6  short[3] items
+
+struct ns::Inner  size 24, align 8, data size 22, padding 9 bytes
+  offset  size
+       0    16  Box<char> b
+       0     8    vptr  Box<char>  -> vtable for Box<char>[2]
+       8     1    char value
+       9     7    padding
+      16     6  Array<short, 3> a
+      16     6    short[3] items
+      22     2  padding

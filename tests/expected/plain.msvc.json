@@ -1,0 +1,146 @@
+{
+  "target": "x86_64-pc-windows-msvc19.33.0",
+  "abi": "microsoft",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "node",
+      "tag": "struct",
+      "location": {
+        "line": 2,
+        "column": 8
+      },
+      "size": 16,
+      "align": 8,
+      "data_size": 16,
+      "nv_size": 16,
+      "nv_align": 8,
+      "padding_bits": 24,
+      "holes": [
+        {
+          "offset": 9,
+          "size": 3
+        }
+      ],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 8,
+          "type": "struct node *",
+          "name": "next"
+        },
+        {
+          "kind": "field",
+          "offset": 8,
+          "size": 1,
+          "type": "char",
+          "name": "tag"
+        },
+        {
+          "kind": "padding",
+          "offset": 9,
+          "size": 3
+        },
+        {
+          "kind": "field",
+          "offset": 12,
+          "size": 4,
+          "type": "int",
+          "name": "value"
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "padded_t",
+      "tag": "struct",
+      "location": {
+        "line": 3,
+        "column": 9
+      },
+      "size": 24,
+      "align": 8,
+      "data_size": 24,
+      "nv_size": 24,
+      "nv_align": 8,
+      "padding_bits": 112,
+      "holes": [
+        {
+          "offset": 1,
+          "size": 7
+        },
+        {
+          "offset": 17,
+          "size": 7
+        }
+      ],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 1,
+          "type": "char",
+          "name": "a"
+        },
+        {
+          "kind": "padding",
+          "offset": 1,
+          "size": 7
+        },
+        {
+          "kind": "field",
+          "offset": 8,
+          "size": 8,
+          "type": "double",
+          "name": "b"
+        },
+        {
+          "kind": "field",
+          "offset": 16,
+          "size": 1,
+          "type": "char",
+          "name": "c"
+        },
+        {
+          "kind": "padding",
+          "offset": 17,
+          "size": 7
+        }
+      ],
+      "vtables": []
+    },
+    {
+      "name": "flex",
+      "tag": "struct",
+      "location": {
+        "line": 4,
+        "column": 8
+      },
+      "size": 4,
+      "align": 4,
+      "data_size": 4,
+      "nv_size": 4,
+      "nv_align": 4,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 4,
+          "type": "int",
+          "name": "len"
+        },
+        {
+          "kind": "field",
+          "offset": 4,
+          "size": 0,
+          "type": "char[]",
+          "name": "data"
+        }
+      ],
+      "vtables": []
+    }
+  ]
+}

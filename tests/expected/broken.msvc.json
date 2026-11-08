@@ -1,0 +1,32 @@
+{
+  "target": "x86_64-pc-windows-msvc19.33.0",
+  "abi": "microsoft",
+  "pointer_size": 8,
+  "records": [
+    {
+      "name": "Ok",
+      "tag": "struct",
+      "location": {
+        "line": 2,
+        "column": 8
+      },
+      "size": 4,
+      "align": 4,
+      "data_size": 4,
+      "nv_size": 4,
+      "nv_align": 4,
+      "padding_bits": 0,
+      "holes": [],
+      "members": [
+        {
+          "kind": "field",
+          "offset": 0,
+          "size": 4,
+          "type": "int",
+          "name": "a"
+        }
+      ],
+      "vtables": []
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+struct Shape  size 8, align 8
+  offset  size
+       0     8  vptr  Shape  -> vtable for Shape[2]
+
+vtable for Shape  5 entries
+   0  offset_to_top 0
+   1  RTTI Shape
+      address point: Shape @0
+   2  Shape::~Shape() [complete]
+   3  Shape::~Shape() [deleting]
+   4  double Shape::area() const [pure]
+
+struct Square  size 16, align 8
+  offset  size
+       0     8  Shape  primary base
+       0     8    vptr  Shape  -> vtable for Square[2]
+       8     8  double side
+
+vtable for Square  5 entries
+   0  offset_to_top 0
+   1  RTTI Square
+      address point: Shape @0, Square @0
+   2  Square::~Square() [complete]
+   3  Square::~Square() [deleting]
+   4  double Square::area() const
