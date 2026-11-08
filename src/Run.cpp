@@ -16,6 +16,12 @@ public:
   void HandleTranslationUnit(clang::ASTContext &C) override {
     out = analyze(C, opts);
   }
+  // Only records in the main file are reported, and clang already keeps
+  // bodies it needs (constexpr, deduced return types).
+  bool shouldSkipFunctionBody(clang::Decl *D) override {
+    const clang::SourceManager &SM = D->getASTContext().getSourceManager();
+    return !SM.isInMainFile(SM.getExpansionLoc(D->getLocation()));
+  }
 
 private:
   const AnalyzeOptions &opts;
@@ -26,7 +32,8 @@ class Action : public clang::ASTFrontendAction {
 public:
   Action(const AnalyzeOptions &opts, Report &out) : opts(opts), out(out) {}
   std::unique_ptr<clang::ASTConsumer>
-  CreateASTConsumer(clang::CompilerInstance &, llvm::StringRef) override {
+  CreateASTConsumer(clang::CompilerInstance &CI, llvm::StringRef) override {
+    CI.getFrontendOpts().SkipFunctionBodies = true;
     return std::make_unique<Consumer>(opts, out);
   }
 

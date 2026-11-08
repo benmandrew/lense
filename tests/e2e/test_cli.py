@@ -204,6 +204,28 @@ void f() {
         inner = recs["Outer"]["members"][0]
         self.assertEqual([m["name"] for m in inner["members"] if "name" in m], ["c", "i"])
 
+    def test_header_function_bodies_skipped(self):
+        # The error in broken() is never parsed. Bodies that a layout
+        # depends on (constexpr, deduced return type) still are.
+        self.write("h.h", (
+            "constexpr int n() { int k = 0; for (int i = 0; i < 5; ++i) k += i; return k; }\n"
+            "template <class T> constexpr int g() { return sizeof(T) * 3; }\n"
+            "inline auto f() { struct L { int x; double y; }; return L{}; }\n"
+            "inline int broken() { return undeclared; }\n"))
+        path = self.write("main.cpp", (
+            '#include "h.h"\n'
+            "struct S { int a[n()]; char c[g<long>()]; decltype(f()) m; };\n"))
+        r = lense("--json", LINUX, path)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(records(r.stdout)["S"]["size"], 80)
+
+    def test_main_file_function_bodies_parsed(self):
+        src = "void f() { struct Local { int a; }; }\nint g() { return undeclared; }\n"
+        r = lense("--json", LINUX, "-", stdin=src)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("undeclared", r.stderr)
+        self.assertEqual(set(records(r.stdout)), {"f()::Local"})
+
     def test_system_types_collapse_unless_expanded(self):
         src = "#include <string>\nstruct S { std::string s; bool b; };\n"
         collapsed = lense("--json", "-", stdin=src)
