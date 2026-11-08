@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "thumbnail": "node scripts/thumbnail.mjs"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "6.0.3",
@@ -18,6 +19,7 @@
     "codemirror": "6.0.2"
   },
   "devDependencies": {
+    "playwright-core": "1.56.1",
     "typescript": "7.0.2",
     "vite": "8.3.6"
   }
