@@ -266,6 +266,26 @@ td .sw:not([class*="cat-"]) { visibility: hidden; }
 .card.hovering .seg:not(.hl) { opacity: 0.3; }
 .seg.hl { box-shadow: 0 0 0 1px var(--surface), 0 0 0 2.5px var(--ink); }
 
+/* A union's members share bytes, so its lanes are outlined as one group. */
+.bytemap .union {
+  z-index: 1;
+  margin: -2px -1px;
+  border: 1.5px solid var(--ink-2);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.bytemap .union.cont-t { margin-top: -3px; border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+.bytemap .union.cont-b { margin-bottom: -3px; border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.bytemap .union-label {
+  min-width: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 
 /* --- Member and vtable tables ------------------------------------------- */
 
@@ -275,8 +295,11 @@ th { font-weight: 400; color: var(--muted); text-align: left; }
 th.num, td.num { width: 1%; text-align: right; padding-right: 1.5em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 td.num { color: var(--ink-2); }
 td.desc { white-space: pre-wrap; }
-.members tr.hl td { background: var(--hl-bg); }
-.members tbody tr:hover td { background: var(--hl-bg); }
+.members tr.hl td { background-color: var(--hl-bg); }
+.members tbody tr:hover td { background-color: var(--hl-bg); }
+/* Rows inside a union get a rule at the union's indent. */
+:root { --union-rule: linear-gradient(var(--ink-2), var(--ink-2)); }
+td.desc.in-union { background-repeat: no-repeat; background-size: 2px 100%; }
 .members tr.cacheline td {
   padding-top: 1px;
   border-top: 1px dashed var(--axis);
@@ -284,7 +307,7 @@ td.desc { white-space: pre-wrap; }
   font-size: 11px;
   line-height: 1.4;
 }
-.members tbody tr.cacheline:hover td { background: none; }
+.members tbody tr.cacheline:hover td { background-color: transparent; }
 
 .type { color: var(--syn-type); }
 .base { font-weight: 600; }

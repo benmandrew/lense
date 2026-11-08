@@ -166,7 +166,30 @@ function tip(n: LayoutNode, ms: boolean): string {
 
 interface Piece { leaf: Leaf; s: number; e: number }
 
+/** A union in the tree: the record itself, or a union member at any depth. */
+interface Union { path: string; name: string; start: number; end: number }
+
+function unions(r: LayoutRecord): Union[] {
+  const out: Union[] = [];
+  if (r.tag === 'union') out.push({ path: '', name: `union ${r.name}`, start: 0, end: r.size * 8 });
+  const walk = (nodes: LayoutNode[], prefix: string) => nodes.forEach((n, i) => {
+    const path = prefix ? `${prefix}.${i}` : `${i}`;
+    if (n.kind !== 'record') return;
+    if (n.tag === 'union') {
+      const [start, end] = bits(n);
+      const name = n.name ? `union ${n.name}` : (n.type ?? 'union');
+      out.push({ path, name, start, end });
+    }
+    walk(n.members ?? [], path);
+  });
+  walk(r.members, '');
+  return out;
+}
+
+const inside = (path: string, u: Union) => u.path === '' || path.startsWith(`${u.path}.`);
+
 function byteMap(r: LayoutRecord, all: Leaf[], ms: boolean, cacheLine = 0): HTMLElement {
+  const groups = unions(r);
   const bytes = Math.min(8, Math.max(1, r.size));
   const rowBits = bytes * 8;
   const rows = Math.ceil((r.size * 8) / rowBits);
@@ -207,8 +230,23 @@ function byteMap(r: LayoutRecord, all: Leaf[], ms: boolean, cacheLine = 0): HTML
       .filter((l) => l.start < hi && l.end > lo)
       .map((l) => ({ leaf: l, s: Math.max(l.start, lo) - lo, e: Math.min(l.end, hi) - lo }));
 
-    // Overlapping members (unions) go on separate lanes.
+    // Overlapping members (unions) go on separate lanes, and each union gets
+    // an outline around its lanes. The row where a union starts has an extra
+    // lane on top for its label.
     const laneEnds: number[] = [];
+    const laneOf = new Map<Piece, number>();
+    for (const p of pieces) {
+      let lane = laneEnds.findIndex((end) => end <= p.s);
+      if (lane < 0) lane = laneEnds.push(0) - 1;
+      laneEnds[lane] = p.e;
+      laneOf.set(p, lane);
+    }
+    const here = groups.filter((u) => u.start < hi && u.end > lo);
+    // A union that is the whole record is already named in the heading.
+    const nested = here.filter((u) => u.path !== '');
+    const labelled = nested.filter((u, i) => u.start >= lo &&
+      !nested.slice(0, i).some((v) => v.start >= lo && v.start < u.end && u.start < v.end));
+    const top = labelled.length ? 1 : 0;
     const line = el('div', 'row');
     // Rows are at most 8 bytes and cache lines at least that, so each
     // boundary falls at the start of a row.
@@ -218,10 +256,32 @@ function byteMap(r: LayoutRecord, all: Leaf[], ms: boolean, cacheLine = 0): HTML
     }
     line.append(el('span', 'off', String(lo / 8)));
     const lanes = el('div', 'lanes');
+    lanes.style.gridTemplateRows =
+      `${top ? '16px ' : ''}repeat(${Math.max(1, laneEnds.length)}, 24px)`;
+    for (const u of here) {
+      const mine = pieces.filter((p) => inside(p.leaf.path, u));
+      if (!mine.length) continue;
+      const first = Math.min(...mine.map((p) => laneOf.get(p)!));
+      const last = Math.max(...mine.map((p) => laneOf.get(p)!));
+      const cols = `${Math.max(u.start, lo) - lo + 1} / ${Math.min(u.end, hi) - lo + 1}`;
+      const isLabelled = labelled.includes(u);
+      const frame = el('div', 'union');
+      frame.style.gridColumn = cols;
+      frame.style.gridRow = `${isLabelled ? 1 : first + top + 1} / ${last + top + 2}`;
+      if (u.start < lo) frame.classList.add('cont-t');
+      if (u.end > hi) frame.classList.add('cont-b');
+      lanes.append(frame);
+      if (isLabelled) {
+        const tag = el('div', 'union-label', u.name);
+        tag.style.gridColumn = cols;
+        tag.style.gridRow = '1';
+        tag.title = 'Every member of a union starts at its first byte; ' +
+          'they share the same storage, one at a time';
+        lanes.append(tag);
+      }
+    }
     for (const p of pieces) {
-      let lane = laneEnds.findIndex((end) => end <= p.s);
-      if (lane < 0) lane = laneEnds.push(0) - 1;
-      laneEnds[lane] = p.e;
+      const lane = laneOf.get(p)! + top;
       const seg = el('div', `seg cat-${p.leaf.cat}`);
       seg.style.gridColumn = `${p.s + 1} / ${p.e + 1}`;
       seg.style.gridRow = String(lane + 1);
@@ -268,7 +328,8 @@ function members(
   // at or after it.
   const line = cacheLine * 8;
   let next = line;
-  const walk = (nodes: LayoutNode[], prefix: string, depth: number) => {
+  // Depths of the unions a row sits in, for the rules drawn at its left.
+  const walk = (nodes: LayoutNode[], prefix: string, depth: number, inUnion: number[]) => {
     nodes.forEach((n, i) => {
       const path = prefix ? `${prefix}.${i}` : `${i}`;
       const [start] = bits(n);
@@ -285,17 +346,24 @@ function members(
       tr.append(el('td', 'num', fmtOffset(start)), el('td', 'num', fmtSizeOf(n)),
                 el('td', 'num', fmtAlign(n)));
       const td = el('td', 'desc');
-      td.style.paddingLeft = `${depth * 1.25}em`;
+      td.style.paddingLeft = `${depth * 1.25 + (inUnion.length ? 0.6 : 0)}em`;
+      if (inUnion.length) {
+        td.classList.add('in-union');
+        td.style.backgroundPosition = inUnion.map((d) => `${d * 1.25}em 0`).join(', ');
+        td.style.backgroundImage = inUnion.map(() => 'var(--union-rule)').join(', ');
+      }
       const cat = cats.get(path);
       td.append(el('span', cat ? `sw cat-${cat}` : 'sw'));
       describe(td, n, ms, vtableLink(n));
+      const isUnion = n.kind === 'record' && n.tag === 'union';
       notes(td, n);
       tr.append(td);
       body.append(tr);
-      if (n.kind === 'record' && n.members) walk(n.members, path, depth + 1);
+      if (n.kind === 'record' && n.members)
+        walk(n.members, path, depth + 1, isUnion ? [...inUnion, depth] : inUnion);
     });
   };
-  walk(r.members, '', 0);
+  walk(r.members, '', 0, r.tag === 'union' ? [0] : []);
   if (!r.members.length) {
     const tr = el('tr');
     const td = el('td', 'dim', '(no members)');
