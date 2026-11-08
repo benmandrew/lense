@@ -50,7 +50,6 @@ function examples(): Plugin {
     resolveId: (source) => (source === id ? `\0${id}` : undefined),
     load(resolved) {
       if (resolved !== `\0${id}`) return;
-      this.addWatchFile(examplesDir);
       const list = readdirSync(examplesDir).filter((f) => /\.(c|cpp)$/.test(f)).sort().map((f) => {
         const path = resolve(examplesDir, f);
         this.addWatchFile(path);
