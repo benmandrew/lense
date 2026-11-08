@@ -1,68 +1,116 @@
-/* Colours follow the dataviz reference palette. The three fills (blue, aqua,
-   orange) pass the colour-vision checks as a set in both modes. Warning and
-   good come from its fixed status palette; each is paired with a label, so
-   colour never carries the meaning alone. */
-:root {
-  color-scheme: light;
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-  --page: #f9f9f7;
-  --surface: #fcfcfb;
-  --ink: #0b0b0b;
-  --ink-2: #52514e;
-  --muted: #898781;
-  --grid: #e1e0d9;
-  --axis: #c3c2b7;
-  --border: rgba(11, 11, 11, 0.1);
-  --hl-bg: #efeee9;
-  --active-line: #f3f2ee;
-  --selection: #d6e4f7;
-  --on-fill: #ffffff;
-  --c-field: #2a78d6;
-  --c-base: #1baf7a;
-  --c-ptr: #eb6834;
-  --pad-bg: #f0efec;
-  --pad-ink: #c3c2b7;
-  --critical: #c8302f;
-  --warning: #fab219;
-  --good: #0ca30c;
-  --good-ink: #006300;
-  --syn-keyword: #5a3fc0;
-  --syn-type: #0b6e99;
-  --syn-string: #9a4a00;
-  --syn-number: #8a5a00;
-  --syn-comment: #6b6a65;
-  --syn-preproc: #a0306a;
+/* Hacktober, the theme of benmandrew.com: dark only, warm greys, burnt
+   orange and pale gold. Every text colour reaches 4.5:1 on each background
+   it sits on, hover and selection included.
+
+   The byte-map fills keep the hues of the site's category tags at a lower
+   lightness, so that they pass the dataviz colour-vision checks against the
+   card and carry #141414 labels at 5.9:1 or more. Member and inherited
+   member are told apart by colour alone and separate by deutan ΔE 15.8.
+   The pointer fill is close to green under deutan vision (ΔE 6.4), so its
+   segments are always labelled vptr, vbptr or vtordisp. */
+
+/* Libertinus Serif and Iosevka Slab Extended, subset as on benmandrew.com.
+   The -ext files hold Latin Extended and general punctuation. Libertinus has
+   an x-height of 0.429 em against 0.52 for Iosevka and the usual system
+   sans, so size-adjust scales it by 116%: serif text keeps the apparent size
+   the pixel sizes below were chosen for. */
+@font-face {
+  font-family: "Libertinus Serif"; font-style: normal; font-weight: 400; font-display: swap;
+  size-adjust: 116%;
+  src: url("./fonts/libertinus-serif-regular-ext.woff2") format("woff2");
+  unicode-range: U+00A0-017F, U+2000-206F;
+}
+@font-face {
+  font-family: "Libertinus Serif"; font-style: normal; font-weight: 400; font-display: swap;
+  size-adjust: 116%;
+  src: url("./fonts/libertinus-serif-regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Libertinus Serif"; font-style: normal; font-weight: 600; font-display: swap;
+  size-adjust: 116%;
+  src: url("./fonts/libertinus-serif-semibold-ext.woff2") format("woff2");
+  unicode-range: U+00A0-017F, U+2000-206F;
+}
+@font-face {
+  font-family: "Libertinus Serif"; font-style: normal; font-weight: 600; font-display: swap;
+  size-adjust: 116%;
+  src: url("./fonts/libertinus-serif-semibold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Libertinus Serif"; font-style: italic; font-weight: 400; font-display: swap;
+  size-adjust: 116%;
+  src: url("./fonts/libertinus-serif-italic-ext.woff2") format("woff2");
+  unicode-range: U+00A0-017F, U+2000-206F;
+}
+@font-face {
+  font-family: "Libertinus Serif"; font-style: italic; font-weight: 400; font-display: swap;
+  size-adjust: 116%;
+  src: url("./fonts/libertinus-serif-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Slab Extended"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("./fonts/iosevka-slab-extended-regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Slab Extended"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("./fonts/iosevka-slab-extended-bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Slab Extended"; font-style: italic; font-weight: 400; font-display: swap;
+  src: url("./fonts/iosevka-slab-extended-italic.woff2") format("woff2");
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --ink: #f0efec;
-    --ink-2: #c3c2b7;
-    --muted: #898781;
-    --grid: #2c2c2a;
-    --axis: #383835;
-    --border: rgba(255, 255, 255, 0.1);
-    --hl-bg: #2a2a28;
-    --active-line: #222221;
-    --selection: #23406a;
-    --c-field: #3987e5;
-    --c-base: #199e70;
-    --c-ptr: #d95926;
-    --pad-bg: #262624;
-    --pad-ink: #4a4a46;
-    --critical: #e66767;
-    --good-ink: #0ca30c;
-    --syn-keyword: #b3a9f5;
-    --syn-type: #6cb6e6;
-    --syn-string: #e3a36b;
-    --syn-number: #e0c36b;
-    --syn-comment: #8f8e88;
-    --syn-preproc: #e98bb4;
-  }
+/* Georgia and Times scaled to Libertinus's metrics (values from
+   benmandrew.com, times 1.16), so text does not reflow when the web font
+   arrives. */
+@font-face {
+  font-family: "Libertinus Fallback Georgia"; src: local("Georgia");
+  size-adjust: 107.47%; ascent-override: 96.5%; descent-override: 26.554%; line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Libertinus Fallback Times"; src: local("Times New Roman"), local("Liberation Serif"), local("Tinos");
+  size-adjust: 117.93%; ascent-override: 87.939%; descent-override: 24.198%; line-gap-override: 0%;
+}
+
+:root {
+  color-scheme: dark;
+  accent-color: #d08949;
+  --serif: "Libertinus Serif", "Libertinus Fallback Georgia", "Libertinus Fallback Times", Georgia, "Times New Roman", serif;
+  --mono: "Iosevka Slab Extended", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --page: #141414;
+  --surface: #191918;
+  --code-bg: #1d1b18;
+  --ink: #f1eee7;
+  --ink-2: #c9c9c9;
+  --muted: #ac9166;
+  --grid: #2c2925;
+  --axis: #464444;
+  --border: #464444;
+  /* 14% link orange over --surface: the most that keeps comments at 4.5:1. */
+  --hl-bg: #33291f;
+  --active-line: #23201c;
+  --selection: #33291f;
+  --link: #d08949;
+  --link-hover: #ebc587;
+  --on-fill: #141414;
+  --c-field: #579dcd;
+  --c-base: #6da361;
+  --c-ptr: #d37d2b;
+  --pad-bg: #211f1c;
+  --pad-ink: #464444;
+  --critical: #e8705f;
+  --warning: #ebc587;
+  --good: #8fb573;
+  --good-ink: #8fb573;
+  --syn-keyword: #d08949;
+  --syn-type: #d8b48a;
+  --syn-string: #ebc587;
+  --syn-number: #e6a46a;
+  --syn-comment: #a08f74;
+  --syn-preproc: #d08949;
+  --syn-function: #f1eee7;
+  --syn-variable: #c9b8a0;
+  --syn-operator: #a3a09a;
 }
 
 * { box-sizing: border-box; }
@@ -74,8 +122,8 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--page);
-  color: var(--ink);
-  font: 14px/1.45 var(--sans);
+  color: var(--ink-2);
+  font: 14px/1.45 var(--serif);
 }
 
 /* --- Toolbar ------------------------------------------------------------ */
@@ -90,7 +138,7 @@ body {
   background: var(--surface);
 }
 
-.bar h1 { margin: 0 8px 0 0; font: 600 16px var(--mono); letter-spacing: 0.02em; }
+.bar h1 { margin: 0 8px 0 0; color: var(--ink); font: 600 16px var(--mono); letter-spacing: 0.02em; }
 
 .bar label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
 
@@ -125,7 +173,7 @@ main {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
 }
 
-#editor { min-height: 0; overflow: hidden; border-right: 1px solid var(--border); background: var(--surface); }
+#editor { min-height: 0; overflow: hidden; border-right: 1px solid var(--border); background: var(--code-bg); }
 #output { min-height: 0; overflow: auto; padding: 16px; }
 
 @media (max-width: 860px) {
@@ -165,7 +213,7 @@ main {
   border-radius: 8px;
 }
 
-.card h2 { margin: 0; font: 600 15px var(--mono); }
+.card h2 { margin: 0; color: var(--ink); font: 600 15px var(--mono); }
 .card h2 .tag { color: var(--syn-keyword); font-weight: 400; }
 .card h2 .name {
   font: inherit;
@@ -314,8 +362,8 @@ td.desc.in-union { background-repeat: no-repeat; background-size: 2px 100%; }
 .dim { color: var(--ink-2); }
 .ptr { font-weight: 600; }
 .pad { color: var(--ink-2); font-style: italic; }
-.link { color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
-.link:hover { text-decoration-style: solid; }
+.link { color: var(--link); text-decoration: underline dotted; text-underline-offset: 3px; }
+.link:hover { color: var(--link-hover); text-decoration-style: solid; }
 
 .vtable { margin-top: 16px; }
 .vtable h3 { margin: 0 0 4px; font: 600 13px var(--mono); }
@@ -381,7 +429,7 @@ td.desc.in-union { background-repeat: no-repeat; background-size: 2px 100%; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 @media (forced-colors: active) {

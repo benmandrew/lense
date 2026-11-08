@@ -166,19 +166,22 @@ const highlight = HighlightStyle.define([
   { tag: [t.number, t.bool, t.null], color: 'var(--syn-number)' },
   { tag: [t.comment, t.lineComment, t.blockComment], color: 'var(--syn-comment)', fontStyle: 'italic' },
   { tag: [t.processingInstruction, t.macroName], color: 'var(--syn-preproc)' },
-  { tag: [t.definition(t.variableName), t.function(t.variableName)], color: 'var(--ink)' },
+  { tag: [t.definition(t.variableName), t.function(t.variableName), t.function(t.propertyName)],
+    color: 'var(--syn-function)' },
+  { tag: [t.variableName, t.propertyName], color: 'var(--syn-variable)' },
+  { tag: [t.operator, t.punctuation], color: 'var(--syn-operator)' },
 ]);
 
 const theme = EditorView.theme({
-  '&': { height: '100%', backgroundColor: 'var(--surface)', color: 'var(--ink)' },
+  '&': { height: '100%', backgroundColor: 'var(--code-bg)', color: 'var(--ink-2)' },
   '.cm-scroller': { fontFamily: 'var(--mono)', fontSize: '13.5px', lineHeight: '1.55' },
-  '.cm-gutters': { backgroundColor: 'var(--surface)', color: 'var(--muted)', border: 'none' },
+  '.cm-gutters': { backgroundColor: 'var(--code-bg)', color: 'var(--muted)', border: 'none' },
   '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--active-line)' },
   '.cm-cursor': { borderLeftColor: 'var(--ink)' },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection':
     { backgroundColor: 'var(--selection) !important' },
-  '.cm-tooltip': { backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink)' },
-});
+  '.cm-tooltip': { backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' },
+}, { dark: true });
 
 let timer = 0;
 const view = new EditorView({

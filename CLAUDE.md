@@ -25,3 +25,4 @@ The manual wasm build steps are in `flake.nix` (`.#web`).
 - The fuzz oracle compiler must be clang 23. GCC and Apple clang are advisory: they genuinely differ.
 - Python tests use the standard library only.
 - `web/src/render.ts` mirrors `src/Text.cpp` wording.
+- The front end is dark-only, in the benmandrew.com theme. Every text colour must reach 4.5:1 on each background it can sit on. The byte-map fills are validated with the dataviz colour-vision checks (see the comment at the top of `web/src/style.css`); re-run them if a fill changes.
