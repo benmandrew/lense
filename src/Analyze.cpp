@@ -261,6 +261,14 @@ private:
       N.type = recordName(RD);
     N.empty = CXX && CXX->isEmpty();
 
+    // Reserve for every child pushed below, plus one padding node from
+    // placeHole, so the vector does not move its Nodes as it grows.
+    size_t children = std::distance(RD->field_begin(), RD->field_end()) + 1;
+    if (CXX)
+      children += 2 + CXX->getNumBases() +
+                  (includeVBases ? 2 * CXX->getNumVBases() : 0);
+    N.children.reserve(children);
+
     if (CXX) {
       const CXXRecordDecl *primary = L.getPrimaryBase();
       if (!ms && CXX->isDynamicClass() && !primary)
