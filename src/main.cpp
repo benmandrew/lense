@@ -20,9 +20,10 @@ static cl::opt<std::string> input(cl::Positional, cl::desc("<file | ->"),
                                   cl::Required, cl::cat(category));
 static cl::opt<bool> json("json", cl::desc("Print JSON instead of text"),
                           cl::cat(category));
-static cl::opt<bool> noVTables("no-vtables",
-                               cl::desc("Leave out vtable layouts"),
-                               cl::cat(category));
+static cl::opt<bool> vtables("vtables",
+                             cl::desc("Also print vtable layouts and the slot "
+                                      "each vptr points at"),
+                             cl::cat(category));
 static cl::opt<bool>
     expandSystem("expand-system",
                  cl::desc("Expand members whose type is from a system header"),
@@ -84,7 +85,7 @@ int main(int argc, char **argv) {
   }
 
   lense::RunOptions opts;
-  opts.analyze.vtables = !noVTables;
+  opts.analyze.vtables = vtables;
   opts.analyze.expandSystem = expandSystem;
   opts.analyze.source = source;
   opts.analyze.records.assign(records.begin(), records.end());

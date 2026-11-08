@@ -53,7 +53,7 @@ class Cli(unittest.TestCase):
     def test_help_lists_options(self):
         r = lense("--help")
         self.assertEqual(r.returncode, 0)
-        for opt in ("--json", "--target", "--record", "--no-vtables",
+        for opt in ("--json", "--target", "--record", "--vtables",
                     "--expand-system", "--source", "--lang", "--color"):
             self.assertIn(opt, r.stdout)
 
@@ -110,15 +110,19 @@ class Cli(unittest.TestCase):
                   stdin="namespace a { namespace b { struct S { int x; }; } }")
         self.assertEqual(set(records(r.stdout)), {"a::b::S"})
 
-    def test_no_vtables(self):
+    def test_vtables_only_when_asked(self):
         path = self.write("t.cpp", DERIVED)
-        r = lense("--json", LINUX, "--no-vtables", path)
-        d = records(r.stdout)["Derived"]
+        d = records(lense("--json", LINUX, path).stdout)["Derived"]
         self.assertEqual(d["vtables"], [])
         self.assertNotIn("points_to", json.dumps(d))
-        text = lense("--color=false", LINUX, "--no-vtables", path).stdout
+        text = lense("--color=false", LINUX, path).stdout
         self.assertNotIn("vtable for", text)
         self.assertIn("vptr", text)
+        d = records(lense("--json", LINUX, "--vtables", path).stdout)["Derived"]
+        self.assertEqual(len(d["vtables"]), 1)
+        self.assertIn("points_to", json.dumps(d))
+        text = lense("--color=false", LINUX, "--vtables", path).stdout
+        self.assertIn("vtable for Derived", text)
 
     def test_source_above_each_record(self):
         path = self.write("t.cpp", "// Two records.\n"
@@ -162,7 +166,7 @@ void f() {
     def test_target_switches_abi(self):
         path = self.write("t.cpp", DERIVED)
         itanium = json.loads(lense("--json", LINUX, path).stdout)
-        msvc = json.loads(lense("--json", MSVC, path).stdout)
+        msvc = json.loads(lense("--json", "--vtables", MSVC, path).stdout)
         self.assertEqual(itanium["abi"], "itanium")
         self.assertEqual(itanium["target"], "x86_64-unknown-linux-gnu")
         self.assertEqual(msvc["abi"], "microsoft")
@@ -238,7 +242,8 @@ void f() {
 
     def test_vptr_names_slot(self):
         path = self.write("t.cpp", DERIVED)
-        text = lense("--color=false", LINUX, "--record=Derived", path).stdout
+        text = lense("--color=false", LINUX, "--vtables", "--record=Derived",
+                     path).stdout
         self.assertIn("-> vtable for Derived[2]", text)
         self.assertIn("-> vtable for Derived[7]", text)
 

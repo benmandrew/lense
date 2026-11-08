@@ -1,6 +1,6 @@
 # lense
 
-`lense` is a command-line tool that prints the memory layout of every C and C++ struct, class and union defined in a source file. For each record it shows member offsets and sizes, *padding holes*, *base-class subobjects* and *vtable pointers*. On Microsoft targets it also shows the `vfptr`, `vbptr` and `vtordisp` fields. Each vtable is laid out in full with its *address points* and *thunks*, and every vptr line names the vtable and slot it points at, such as `-> vtable for Derived[2]`.
+`lense` is a command-line tool that prints the memory layout of every C and C++ struct, class and union defined in a source file. For each record it shows member offsets and sizes, *padding holes*, *base-class subobjects* and *vtable pointers*. On Microsoft targets it also shows the `vfptr`, `vbptr` and `vtordisp` fields. With `--vtables`, each vtable is laid out in full with its *address points* and *thunks*, and every vptr line names the vtable and slot it points at, such as `-> vtable for Derived[2]`.
 
 The tool is a C++20 program built on clang's *LibTooling* against LLVM 23. It reads layouts directly from clang's `ASTRecordLayout`, `ItaniumVTableContext` and `MicrosoftVTableContext`. No code generation runs. A class's vtable therefore appears even when the file defines no *key function* for it.
 
@@ -34,7 +34,7 @@ Passing `-` reads the source from standard input, which is treated as C++ unless
 | `--json` | Print JavaScript Object Notation (JSON) instead of text |
 | `--target=<triple>` | Use a target triple such as `x86_64-pc-windows-msvc`, which switches to the Microsoft application binary interface (ABI) |
 | `--record=<name>` | Only show the named records, by qualified name; repeatable or comma-separated |
-| `--no-vtables` | Leave out vtable layouts |
+| `--vtables` | Also print vtable layouts, and after each vptr the vtable slot it points at. Off by default |
 | `--expand-system` | Expand members whose type comes from a system header; these are collapsed by default, so `std::string` shows as one 24-byte field |
 | `--source` | Print each record's definition, with line numbers, above its layout. An instantiation shows its template. In JSON, each record gains a `source` object with `line` and `text` |
 | `--lang=c\|c++` | Language of standard input |
@@ -54,7 +54,7 @@ struct Other { virtual void g(); char c; };
 struct Derived : Base, Other { void f() override; double d; char e; };
 ```
 
-`lense --record=Derived t.cpp` prints:
+`lense --vtables --record=Derived t.cpp` prints:
 
 ```
 struct Derived  size 48, align 8, data size 41, padding 18 bytes
@@ -85,7 +85,7 @@ vtable for Derived  8 entries
    7  void Other::g()
 ```
 
-Base subobjects are shown at their *non-virtual size*. `Base` occupies 12 bytes here against a `sizeof` of 16, so the 4 bytes at offset 12 are padding that belongs to `Derived`. The `Other` vptr at offset 16 points at slot 7, inside the second address point of the same vtable.
+Base subobjects are shown at their *non-virtual size*. `Base` occupies 12 bytes here against a `sizeof` of 16, so the 4 bytes at offset 12 are padding that belongs to `Derived`. The `Other` vptr at offset 16 points at slot 7, inside the second address point of the same vtable. Without `--vtables`, the output stops before the vtable, and each vptr line ends after its class name (`vptr  Base`).
 
 ## In the browser
 
@@ -113,7 +113,7 @@ Timings were measured in Chrome against a local server. Clang is ready and the s
 
 **Golden files.** Inputs live in `tests/cases` and expected output in `tests/expected`, giving 33 tests. Each case runs as JSON on `x86_64-linux-gnu`, as JSON on `x86_64-pc-windows-msvc`, and as text on Linux. To regenerate the expected output, run `LENSE_UPDATE=1 ctest --test-dir build` and review the git diff.
 
-**End-to-end tests.** `tests/e2e/test_cli.py` holds 23 tests that run the real binary. They cover file and stdin input, C and C++ modes, `--record`, `--no-vtables`, `--source`, `--target` and `--` pass-through. They also check quote includes relative to the file, system-type collapsing, colour, exit codes, compile errors and binary input. The rest check determinism and that the text output agrees with the JSON.
+**End-to-end tests.** `tests/e2e/test_cli.py` holds 23 tests that run the real binary. They cover file and stdin input, C and C++ modes, `--record`, `--vtables`, `--source`, `--target` and `--` pass-through. They also check quote includes relative to the file, system-type collapsing, colour, exit codes, compile errors and binary input. The rest check determinism and that the text output agrees with the JSON.
 
 **Oracle fuzzing.** `tests/fuzz/fuzz.py --mode oracle` runs *property-based* fuzzing against a compiled *oracle*. `gen.py` generates random valid class hierarchies with virtual and repeated bases, virtual functions, bitfields, unions, arrays, `[[no_unique_address]]`, `alignas` and packing. `lense` reports on each program, and `oracle.py` turns the report into a C++ checker that is compiled and run. The checker tests `sizeof`, `alignof` and the address of every base and field. It checks every bitfield's bits by assigning -1 and diffing memory, and it checks every vptr value. Every vtable entry is checked relative to its address point, covering offsets, run-time type information (RTTI) pointers and function slots. Each function slot is called through any thunk, and the checker verifies the returned *final-overrider* id and its complete-object `this`.
 
