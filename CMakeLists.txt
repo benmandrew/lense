@@ -15,7 +15,10 @@ if(NOT LLVM_VERSION_MAJOR EQUAL LENSE_LLVM_MAJOR)
     "${LLVM_PACKAGE_VERSION} at ${LLVM_DIR}. Set LLVM_DIR to an LLVM "
     "${LENSE_LLVM_MAJOR} install, or use `nix develop`.")
 endif()
-find_package(Clang REQUIRED CONFIG HINTS "${LLVM_LIBRARY_DIR}/cmake/clang")
+# NO_CMAKE_FIND_ROOT_PATH: cross toolchains (Emscripten) would look for the
+# hint inside their sysroot.
+find_package(Clang REQUIRED CONFIG HINTS "${LLVM_LIBRARY_DIR}/cmake/clang"
+             NO_CMAKE_FIND_ROOT_PATH)
 message(STATUS "Using LLVM ${LLVM_PACKAGE_VERSION} from ${LLVM_DIR}")
 
 # lense runs clang in-process, so it must be told where the headers are that
@@ -31,7 +34,9 @@ if(TARGET clang-cpp)
   set(_res "${_clang_libdir}/clang/${LLVM_VERSION_MAJOR}")
 endif()
 set(LENSE_RESOURCE_DIR "${_res}" CACHE PATH "Clang resource directory")
-if(NOT EXISTS "${LENSE_RESOURCE_DIR}/include/stddef.h")
+if(EMSCRIPTEN)
+  # wasm/CMakeLists.txt copies these headers into the WebAssembly builds.
+elseif(NOT EXISTS "${LENSE_RESOURCE_DIR}/include/stddef.h")
   message(WARNING "No clang builtin headers in ${LENSE_RESOURCE_DIR}; "
                   "set LENSE_RESOURCE_DIR")
 endif()
@@ -79,12 +84,16 @@ message(STATUS "lense resource dir: ${LENSE_RESOURCE_DIR}")
 message(STATUS "lense sysroot: ${LENSE_DEFAULT_SYSROOT}")
 message(STATUS "lense host args: ${LENSE_HOST_ARGS}")
 
+# Run.cpp reads lense_config.h. The WebAssembly builds compile it once per
+# program, because each finds its headers in a different place.
 add_library(lense_core STATIC
   src/Analyze.cpp
   src/Json.cpp
-  src/Run.cpp
   src/Text.cpp
 )
+if(NOT EMSCRIPTEN)
+  target_sources(lense_core PRIVATE src/Run.cpp)
+endif()
 target_include_directories(lense_core PUBLIC src
   PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_include_directories(lense_core SYSTEM PUBLIC
@@ -106,6 +115,18 @@ endif()
 add_executable(lense src/main.cpp)
 target_link_libraries(lense PRIVATE lense_core)
 install(TARGETS lense RUNTIME DESTINATION bin)
+
+# The program the tests run.
+if(EMSCRIPTEN)
+  add_subdirectory(wasm)
+  # POST_BUILD steps must be added in the directory that created the target.
+  add_custom_command(TARGET lense POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" "-DJS=$<TARGET_FILE:lense>"
+            -P "${PROJECT_SOURCE_DIR}/wasm/patch-noderawfs.cmake")
+  set(LENSE_TEST_EXE "${PROJECT_BINARY_DIR}/lense-node")
+else()
+  set(LENSE_TEST_EXE "$<TARGET_FILE:lense>")
+endif()
 
 enable_testing()
 add_subdirectory(tests)

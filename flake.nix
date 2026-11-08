@@ -22,10 +22,17 @@
         LENSE_ADVISORY_CXX = "${pkgs.gcc}/bin/g++";
         LENSE_STATIC_CXX = "${(llvmFor pkgs).clang-unwrapped}/bin/clang++";
       };
+
+      # Emscripten writes its cache of compiled system libraries as it goes.
+      emscriptenSetup = pkgs: ''
+        export HOME=$TMPDIR EM_CACHE=$TMPDIR/emscripten-cache
+        cp -r ${pkgs.emscripten}/share/emscripten/cache $EM_CACHE
+        chmod -R u+w $EM_CACHE
+      '';
     in
     {
       packages = forAllSystems (pkgs:
-        let llvm = llvmFor pkgs; in {
+        let llvm = llvmFor pkgs; in rec {
           default = llvm.stdenv.mkDerivation (oracleEnv pkgs // {
             pname = "lense";
             version = "0.1.0";
@@ -52,6 +59,65 @@
               platforms = systems;
             };
           });
+
+          # The clang libraries that lense needs, compiled to WebAssembly. The
+          # build tree is the output, because LLVM's build-tree CMake package
+          # refers to it by absolute path; object files are deleted.
+          llvm-wasm = pkgs.stdenv.mkDerivation {
+            pname = "lense-llvm-wasm";
+            inherit (llvm.llvm) version;
+            src = llvm.llvm.monorepoSrc;
+            # Configure against the store path: the build-tree CMake package
+            # refers to the source directory, so it must outlive the build.
+            dontUnpack = true;
+            nativeBuildInputs = [ pkgs.emscripten pkgs.cmake pkgs.ninja pkgs.python3 ];
+            configurePhase = ''
+              runHook preConfigure
+              ${emscriptenSetup pkgs}
+              emcmake cmake -G Ninja -S $src/llvm -B $out/build -C ${./wasm/llvm-cache.cmake} \
+                -DLLVM_NATIVE_TOOL_DIR=${llvm.tblgen}/bin \
+                -DLLVM_TABLEGEN=${llvm.tblgen}/bin/llvm-tblgen \
+                -DCLANG_TABLEGEN=${llvm.tblgen}/bin/clang-tblgen
+              runHook postConfigure
+            '';
+            buildPhase = ''
+              runHook preBuild
+              ninja -C $out/build -j $NIX_BUILD_CORES clangTooling clang-resource-headers
+              find $out/build -name '*.o' -delete
+              runHook postBuild
+            '';
+            installPhase = "true";
+            dontFixup = true;
+          };
+
+          # lense compiled to WebAssembly: share/lense/web holds the browser
+          # module. The test suite runs the Node build of the CLI.
+          wasm = pkgs.stdenv.mkDerivation (oracleEnv pkgs // {
+            pname = "lense-wasm";
+            version = "0.1.0";
+            src = nixpkgs.lib.fileset.toSource {
+              root = ./.;
+              fileset = nixpkgs.lib.fileset.unions [
+                ./CMakeLists.txt
+                ./src
+                ./tests
+                ./wasm
+              ];
+            };
+            nativeBuildInputs = [ pkgs.emscripten pkgs.cmake pkgs.ninja pkgs.python3 pkgs.nodejs ];
+            configurePhase = ''
+              runHook preConfigure
+              ${emscriptenSetup pkgs}
+              emcmake cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=MinSizeRel \
+                -DLLVM_DIR=${llvm-wasm}/build/lib/cmake/llvm -DCMAKE_INSTALL_PREFIX=$out
+              runHook postConfigure
+            '';
+            buildPhase = "ninja -C build -j $NIX_BUILD_CORES";
+            doCheck = true;
+            checkPhase = "ctest --test-dir build --output-on-failure -j $NIX_BUILD_CORES";
+            installPhase = "ninja -C build install";
+            dontFixup = true;
+          });
         });
 
       checks = forAllSystems (pkgs: {
@@ -63,7 +129,7 @@
           default = (pkgs.mkShell.override { stdenv = llvm.stdenv; }) (oracleEnv pkgs // {
             inputsFrom = [ self.packages.${pkgs.stdenv.hostPlatform.system}.default ];
             # GCC stays off PATH (it would shadow cc/c++); tests use the path below.
-            packages = [ llvm.clang-tools ];
+            packages = [ llvm.clang-tools pkgs.emscripten pkgs.nodejs ];
           });
         });
 

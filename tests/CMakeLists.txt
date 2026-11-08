@@ -29,7 +29,7 @@ foreach(input ${cases})
     string(REPLACE ";" "|" flags "${flags}")
     add_test(NAME ${name}.${variant}
       COMMAND ${CMAKE_COMMAND}
-        -DLENSE=$<TARGET_FILE:lense>
+        -DLENSE=${LENSE_TEST_EXE}
         -DINPUT=${input}
         -DEXPECTED=${CMAKE_CURRENT_SOURCE_DIR}/expected/${name}.${ext}
         -DACTUAL=${CMAKE_CURRENT_BINARY_DIR}/actual/${name}.${ext}
@@ -48,13 +48,13 @@ endif()
 
 add_test(NAME e2e.cli
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/e2e/test_cli.py)
-set_tests_properties(e2e.cli PROPERTIES ENVIRONMENT "LENSE=$<TARGET_FILE:lense>")
+set_tests_properties(e2e.cli PROPERTIES ENVIRONMENT "LENSE=${LENSE_TEST_EXE}")
 
 # The oracle compiler must be clang ${LENSE_LLVM_MAJOR}, the same layout
 # engine lense reports on. Other compilers (GCC, Apple clang) are advisory:
 # their disagreements are printed and saved but do not fail the test.
 set(_oracle "$ENV{LENSE_ORACLE_CXX}")
-if(NOT _oracle AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
+if(NOT _oracle AND NOT EMSCRIPTEN AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
    CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL ${LENSE_LLVM_MAJOR} AND
    CMAKE_CXX_COMPILER_VERSION VERSION_LESS ${LENSE_LLVM_MAJOR}.99)
   set(_oracle "${CMAKE_CXX_COMPILER}")
@@ -68,7 +68,7 @@ set(LENSE_STATIC_CXX "$ENV{LENSE_STATIC_CXX}" CACHE FILEPATH
 set(LENSE_FUZZ_ITERATIONS 64 CACHE STRING "Cases per fuzz test in ctest")
 
 set(_fuzz ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/fuzz/fuzz.py
-    --lense $<TARGET_FILE:lense> --seed 1
+    --lense ${LENSE_TEST_EXE} --seed 1
     --out ${CMAKE_CURRENT_BINARY_DIR}/fuzz-failures)
 
 add_test(NAME fuzz.mutate
@@ -81,6 +81,12 @@ if(LENSE_ORACLE_CXX)
   endforeach()
   if(LENSE_STATIC_CXX)
     list(APPEND _oracle_args --static-cxx ${LENSE_STATIC_CXX})
+  endif()
+  if(EMSCRIPTEN)
+    # lense.js defaults to x86-64 Linux; the checkers run on the build host.
+    execute_process(COMMAND ${LENSE_ORACLE_CXX} -print-target-triple
+                    OUTPUT_VARIABLE _host OUTPUT_STRIP_TRAILING_WHITESPACE)
+    list(APPEND _oracle_args --host-target ${_host})
   endif()
   # Advisory divergences are expected (see README), so don't spend time
   # shrinking them here.

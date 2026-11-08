@@ -66,7 +66,7 @@ std::vector<std::string> buildArgs(const RunOptions &opts) {
   // macOS, another Apple target that shares the SDK).
   llvm::StringRef sysroot = LENSE_DEFAULT_SYSROOT;
   std::string target = findTarget(user);
-  bool hostLike = target.empty() ||
+  bool hostLike = LENSE_HOST_ARGS_ANY_TARGET || target.empty() ||
                   (!sysroot.empty() && llvm::StringRef(target).contains("apple"));
   if (hostLike) {
     if (!sysroot.empty() && !hasFlag(user, {"-isysroot", "--sysroot"})) {

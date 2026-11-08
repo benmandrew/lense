@@ -1,6 +1,6 @@
 # lense
 
-CLI that prints C/C++ record layouts and vtable layouts, built on clang LibTooling. A browser front end (WebAssembly) is planned; see @PLAN.md.
+CLI that prints C/C++ record layouts and vtable layouts, built on clang LibTooling, and as WebAssembly. A browser front end is planned; see @PLAN.md.
 
 ## Build and test
 
@@ -13,6 +13,15 @@ cmake -S . -B build -G Ninja && ninja -C build
 ctest --test-dir build                      # goldens, e2e, fuzz (33 tests)
 LENSE_UPDATE=1 ctest --test-dir build -R '\.(itanium|msvc|text)$'   # regenerate goldens, review the diff
 tests/fuzz/fuzz.py --lense build/lense --cxx "$LENSE_ORACLE_CXX" --advisory-cxx "$LENSE_ADVISORY_CXX" --static-cxx "$LENSE_STATIC_CXX" --iterations 1000
+```
+
+WebAssembly (outside Nix; `nix build .#wasm` does all of this):
+
+```
+emcmake cmake -G Ninja -S <llvm-project>/llvm -B build-wasm/llvm -C wasm/llvm-cache.cmake -DLLVM_NATIVE_TOOL_DIR=<llvm-tblgen dir>
+ninja -C build-wasm/llvm clangTooling clang-resource-headers
+emcmake cmake -G Ninja -S . -B build-wasm/lense -DCMAKE_BUILD_TYPE=MinSizeRel -DLLVM_DIR=$PWD/build-wasm/llvm/lib/cmake/llvm
+ninja -C build-wasm/lense && ctest --test-dir build-wasm/lense   # tests run build-wasm/lense/lense-node
 ```
 
 ## Tests
@@ -28,7 +37,7 @@ tests/fuzz/fuzz.py --lense build/lense --cxx "$LENSE_ORACLE_CXX" --advisory-cxx 
 
 - C++20, pinned to LLVM 23. Clang's C++ API changes every major release; bumping the version means fixing API breaks (e.g. `PrintingPolicy::AnonymousTagNameStyle`, `FieldDecl::getBitWidthValue()`).
 - Read layouts from `ASTRecordLayout` and `ItaniumVTableContext` / `MicrosoftVTableContext`. Never parse clang's `-fdump-*` text. libclang (C API) has no vtable API, so Python/Rust bindings are not an option.
-- `src/Model.h` has no clang dependency. Analyze fills it; Json and Text print it. The WebAssembly build will reuse `Run.cpp` + `Analyze.cpp` unchanged and emit JSON.
+- `src/Model.h` has no clang dependency. Analyze fills it; Json and Text print it. The WebAssembly builds reuse `Run.cpp` + `Analyze.cpp` unchanged.
 - Traversal order and naming follow clang's own dumps (`RecordLayoutBuilder.cpp` `DumpRecordLayout`, MS vftable names from `PathToIntroducingObject` reversed). When in doubt, compare against `clang++ -S -o /dev/null -Xclang -fdump-record-layouts -Xclang -fdump-vtable-layouts`.
 - All offsets in the model are bits from the start of the outermost record. Padding is computed by sweeping occupied leaf ranges, then each hole is placed in the innermost non-empty record that contains it.
 - Base subobjects are sized by non-virtual size, `[[no_unique_address]]` fields by data size (tail padding may hold later members); empty ones are size 0.
@@ -37,3 +46,4 @@ tests/fuzz/fuzz.py --lense build/lense --cxx "$LENSE_ORACLE_CXX" --advisory-cxx 
 - LLVM already registers `--color`; reuse it via `llvm::WithColor` instead of defining another.
 - Vtable address points belong to the sub-table holding the RTTI entry before them; a table with no functions has its address point at the next table's start.
 - Tests pin targets (`x86_64-linux-gnu`, `x86_64-pc-windows-msvc`) and avoid `#include`s so goldens are host-independent.
+- WebAssembly: `src/Wasm.cpp` is the browser entry (`lense_analyze`); `src/main.cpp` + `Run.cpp` also build as `lense.js` for Node so every test suite runs against wasm. Headers come from Emscripten's sysroot, staged by `wasm/stage-headers.cmake`, which patches libc++ `__config_site` from ABI v2 to v1 to match native targets.

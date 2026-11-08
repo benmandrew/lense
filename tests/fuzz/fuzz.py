@@ -145,7 +145,8 @@ class Fuzzer:
             with open(path, "w") as f:
                 f.write(src)
 
-            r = self.lense(path, d, "--json")
+            host = [f"--target={self.args.host_target}"] if self.args.host_target else []
+            r = self.lense(path, d, "--json", *host)
             if (why := self.crashed(r)):
                 return Outcome(failure=Failure("crash", f"lense --json: {why}\n{r.stderr}", files))
             if r.returncode == 1:
@@ -156,10 +157,10 @@ class Fuzzer:
                 return Outcome(failure=Failure("bad-json", str(e), files))
             files["report.json"] = r.stdout
 
-            again = self.lense(path, d, "--json")
+            again = self.lense(path, d, "--json", *host)
             if again.stdout != r.stdout:
                 return Outcome(failure=Failure("nondeterministic", "two runs differ", files))
-            text = self.lense(path, d, "--color=false")
+            text = self.lense(path, d, "--color=false", *host)
             if text.returncode != 0:
                 return Outcome(failure=Failure("text-mode", f"exit {text.returncode}\n{text.stderr}", files))
 
@@ -407,6 +408,9 @@ def main() -> int:
                     help="compiler whose disagreements are reported, not failed")
     ap.add_argument("--static-cxx", default=None,
                     help="clang used for static checks on cross targets")
+    ap.add_argument("--host-target", default=None,
+                    help="triple the --cxx compilers build for, if lense's "
+                         "default differs (as in the WebAssembly build)")
     ap.add_argument("--mode", choices=["oracle", "mutate"], default="oracle")
     ap.add_argument("--iterations", type=int, default=100)
     ap.add_argument("--seed", type=int, default=None)

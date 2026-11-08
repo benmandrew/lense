@@ -13,6 +13,7 @@ nix build            # builds and runs the full test suite; binary at result/bin
 nix develop          # shell with every dependency
 cmake -S . -B build -G Ninja && ninja -C build && ctest --test-dir build
 nix run . -- file.cpp
+nix build .#wasm     # WebAssembly build; runs the test suite against the Node.js build
 ```
 
 Inside `nix develop` or `nix build`, CMake copies the libc and libc++ include flags from the Nix compiler wrapper in `$NIX_CC/nix-support`, so `#include <string>` resolves. Nix only sees files tracked by git. New files therefore need `git add` before `nix build`.
@@ -129,6 +130,8 @@ They do disagree. `lense` describes upstream clang 23's layout, which can differ
 - `src/Json.cpp` and `src/Text.cpp` are the two printers.
 - `src/Run.cpp` runs clang on a string.
 - `src/main.cpp` is the command-line interface.
+- `src/Wasm.cpp` is the browser entry point. `lense_analyze(code, options)` returns JSON.
+- `wasm/` holds the Emscripten CMake files: the LLVM cache file `llvm-cache.cmake` and the header staging.
 
 A browser front end that runs the same core compiled to WebAssembly is planned.
 
