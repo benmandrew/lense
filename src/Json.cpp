@@ -1,5 +1,6 @@
 #include "Json.h"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -45,6 +46,23 @@ const char *entryName(EntryKind k) {
   return "";
 }
 
+// json::OStream checks every string for valid UTF-8 and escapes it a byte
+// at a time. Names and types are almost always printable ASCII without
+// quotes or backslashes, which need neither, so write those directly. The
+// output is the same either way.
+void attr(llvm::json::OStream &J, llvm::StringRef key, llvm::StringRef s) {
+  bool plain = llvm::all_of(s, [](unsigned char c) {
+    return c >= 0x20 && c < 0x80 && c != '"' && c != '\\';
+  });
+  if (!plain) {
+    J.attribute(key, s);
+    return;
+  }
+  J.attributeBegin(key);
+  J.rawValue([&](llvm::raw_ostream &os) { os << '"' << s << '"'; });
+  J.attributeEnd();
+}
+
 // Offsets and sizes are written in bytes. Anything that does not fall on a
 // byte boundary also gets its exact position in bits.
 void position(llvm::json::OStream &J, uint64_t offsetBits, uint64_t sizeBits,
@@ -60,21 +78,21 @@ void position(llvm::json::OStream &J, uint64_t offsetBits, uint64_t sizeBits,
 
 void node(llvm::json::OStream &J, const Node &n) {
   J.object([&] {
-    J.attribute("kind", kindName(n.kind));
+    attr(J, "kind", kindName(n.kind));
     if (n.kind == NodeKind::Record)
-      J.attribute("role", roleName(n.role));
+      attr(J, "role", roleName(n.role));
     position(J, n.offsetBits, n.sizeBits, n.kind == NodeKind::BitField);
     if (!n.tag.empty())
-      J.attribute("tag", n.tag);
+      attr(J, "tag", n.tag);
     if (!n.type.empty())
-      J.attribute("type", n.type);
+      attr(J, "type", n.type);
     if (!n.name.empty())
-      J.attribute("name", n.name);
+      attr(J, "name", n.name);
     if (n.empty)
       J.attribute("empty", true);
     if (n.vtable)
       J.attributeObject("points_to", [&] {
-        J.attribute("table", n.vtable->table);
+        attr(J, "table", n.vtable->table);
         J.attribute("slot", n.vtable->slot);
       });
     if (n.kind == NodeKind::Record)
@@ -87,7 +105,7 @@ void node(llvm::json::OStream &J, const Node &n) {
 
 void vtable(llvm::json::OStream &J, const VTable &vt) {
   J.object([&] {
-    J.attribute("name", vt.name);
+    attr(J, "name", vt.name);
     if (vt.vfptrOffset)
       J.attribute("vfptr_offset", *vt.vfptrOffset);
     if (!vt.tableStarts.empty())
@@ -102,7 +120,7 @@ void vtable(llvm::json::OStream &J, const VTable &vt) {
           J.attributeArray("subobjects", [&] {
             for (const Subobject &s : ap.subobjects)
               J.object([&] {
-                J.attribute("type", s.type);
+                attr(J, "type", s.type);
                 J.attribute("offset", s.offset);
               });
           });
@@ -113,7 +131,7 @@ void vtable(llvm::json::OStream &J, const VTable &vt) {
         const VTableEntry &e = vt.entries[i];
         J.object([&] {
           J.attribute("index", i);
-          J.attribute("kind", entryName(e.kind));
+          attr(J, "kind", entryName(e.kind));
           switch (e.kind) {
           case EntryKind::VCallOffset:
           case EntryKind::VBaseOffset:
@@ -121,10 +139,10 @@ void vtable(llvm::json::OStream &J, const VTable &vt) {
             J.attribute("value", e.value);
             break;
           case EntryKind::RTTI:
-            J.attribute("type", e.text);
+            attr(J, "type", e.text);
             break;
           default:
-            J.attribute("function", e.text);
+            attr(J, "function", e.text);
             if (e.pure)
               J.attribute("pure", true);
           }
@@ -154,14 +172,14 @@ void vtable(llvm::json::OStream &J, const VTable &vt) {
 void printJson(llvm::raw_ostream &os, const Report &report) {
   llvm::json::OStream J(os, 2);
   J.object([&] {
-    J.attribute("target", report.target);
-    J.attribute("abi", report.abi);
+    attr(J, "target", report.target);
+    attr(J, "abi", report.abi);
     J.attribute("pointer_size", report.pointerBits / 8);
     J.attributeArray("records", [&] {
       for (const Record &r : report.records)
         J.object([&] {
-          J.attribute("name", r.name);
-          J.attribute("tag", r.tag);
+          attr(J, "name", r.name);
+          attr(J, "tag", r.tag);
           J.attributeObject("location", [&] {
             J.attribute("line", r.line);
             J.attribute("column", r.column);
@@ -175,7 +193,7 @@ void printJson(llvm::raw_ostream &os, const Report &report) {
           if (!r.source.empty())
             J.attributeObject("source", [&] {
               J.attribute("line", r.sourceLine);
-              J.attribute("text", r.source);
+              attr(J, "text", r.source);
             });
           J.attributeArray("holes", [&] {
             for (const Hole &h : r.holes)
