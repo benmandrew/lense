@@ -1,5 +1,7 @@
 # lense
 
+![Screenshot](web/public/og.png)
+
 `lense` prints the memory layout of every C and C++ struct, class and union in a source file: member offsets, padding, base subobjects, and vtable pointers. It reads the layouts from clang 23 through *LibTooling*, and also runs in a browser as WebAssembly.
 
 ```
