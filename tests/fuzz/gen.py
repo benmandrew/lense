@@ -33,6 +33,7 @@ BITFIELD_TYPES = [
     ("unsigned short", 16), ("unsigned long long", 64), ("long long", 64),
 ]
 N_METHODS = 6
+RECORD_KINDS = ("record", "record_array")
 
 
 @dataclass
@@ -110,8 +111,7 @@ def is_trivial(p: Program, name: str) -> bool:
         return False
     if any(not is_trivial(p, b) for b, _ in c.bases):
         return False
-    return all(f.kind not in ("record", "record_array") or is_trivial(p, f.type)
-               for f in c.fields)
+    return all(f.kind not in RECORD_KINDS or is_trivial(p, f.type) for f in c.fields)
 
 
 def bases_ok(p: Program, bases: List[Tuple[str, bool]]) -> bool:
@@ -132,24 +132,20 @@ def bases_ok(p: Program, bases: List[Tuple[str, bool]]) -> bool:
 
 def program_ok(p: Program) -> bool:
     """Re-checks the generator's rules; shrinking can break them."""
-    names = {c.name for c in p.classes}
     for i, c in enumerate(p.classes):
         earlier = {d.name for d in p.classes[:i]}
-        if any(b not in earlier for b, _ in c.bases):
+        records = [f.type for f in c.fields if f.kind in RECORD_KINDS]
+        if any(b not in earlier for b, _ in c.bases) or \
+                any(t not in earlier for t in records):
             return False
-        for f in c.fields:
-            if f.kind in ("record", "record_array") and f.type not in earlier:
-                return False
-        if c.union and (c.bases or c.methods or c.vdtor):
-            return False
-        if c.union and any(f.kind in ("record", "record_array") and
-                           not is_trivial(p, f.type) for f in c.fields):
+        if c.union and (c.bases or c.methods or c.vdtor or
+                        not all(is_trivial(p, t) for t in records)):
             return False
         if any(p.get(b).union for b, _ in c.bases):
             return False
         if not bases_ok(p, c.bases):
             return False
-    return bool(names)
+    return bool(p.classes)
 
 
 # ---- Generation -------------------------------------------------------------
@@ -170,8 +166,7 @@ def gen_field(rng: random.Random, p: Program, cls: Class, idx: int) -> Field:
         t, maxw = rng.choice(BITFIELD_TYPES)
         if rng.random() < 0.15:
             return Field("bitfield", t, None, width=rng.randint(0, maxw))
-        f = Field("bitfield", t, name, width=rng.randint(1, maxw))
-        return f
+        return Field("bitfield", t, name, width=rng.randint(1, maxw))
     elif roll < 0.9:
         f = Field("record", rng.choice(candidates), name)
         f.nua = not cls.union and rng.random() < 0.25
@@ -228,19 +223,17 @@ def generate(rng: random.Random, max_classes: int = 6) -> Program:
 
 # ---- Rendering --------------------------------------------------------------
 
+def declare(t: str, name: str) -> str:
+    return f"{t}{name}" if t.endswith("*") else f"{t} {name}"
+
+
 def render_field(f: Field) -> str:
-    pre = ""
-    if f.nua:
-        pre += "[[no_unique_address]] "
-    if f.align:
-        pre += f"alignas({f.align}) "
     if f.kind == "bitfield":
         return f"  {f.type} {f.name or ''} : {f.width};"
+    pre = ("[[no_unique_address]] " if f.nua else "") + \
+        (f"alignas({f.align}) " if f.align else "")
     suffix = f"[{f.count}]" if f.kind in ("array", "record_array") else ""
-    t = f.type
-    if t.endswith("*"):
-        return f"  {pre}{t}{f.name}{suffix};"
-    return f"  {pre}{t} {f.name}{suffix};"
+    return f"  {pre}{declare(f.type, f.name)}{suffix};"
 
 
 def render(p: Program) -> str:
@@ -263,13 +256,11 @@ def render(p: Program) -> str:
             out.append(f"  virtual int m{k}() {{ return {ident}; }}")
         out.extend(render_field(f) for f in c.fields)
         for k, (form, t) in enumerate(c.statics):
-            sep = "" if t.endswith("*") else " "
             if form == "inline":
-                out.append(f"  inline static {t}{sep}s{k}{{}};")
+                out.append(f"  inline static {declare(t, f's{k}')}{{}};")
             else:
-                out.append(f"  static {t}{sep}s{k};")
-        out.append("};")
-        out.append("")
+                out.append(f"  static {declare(t, f's{k}')};")
+        out += ["};", ""]
     return "\n".join(out)
 
 
@@ -298,42 +289,28 @@ def shrink_candidates(p: Program):
         for c in q.classes:
             c.bases = [(b, v) for b, v in c.bases if b != gone]
             c.fields = [f for f in c.fields
-                        if f.kind not in ("record", "record_array") or f.type != gone]
+                        if f.kind not in RECORD_KINDS or f.type != gone]
             c.statics = [s for s in c.statics if s[1] != gone]
         yield q
     for i, c in enumerate(p.classes):
-        for j in range(len(c.bases)):
-            q = copy.deepcopy(p)
-            del q.classes[i].bases[j]
-            yield q
-        for j in range(len(c.fields)):
-            q = copy.deepcopy(p)
-            del q.classes[i].fields[j]
-            yield q
-        for j in range(len(c.methods)):
-            q = copy.deepcopy(p)
-            del q.classes[i].methods[j]
-            yield q
-        for j in range(len(c.statics)):
-            q = copy.deepcopy(p)
-            del q.classes[i].statics[j]
-            yield q
+        for attr in ("bases", "fields", "methods", "statics"):
+            for j in range(len(getattr(c, attr))):
+                q = copy.deepcopy(p)
+                del getattr(q.classes[i], attr)[j]
+                yield q
         for attr, empty in (("vdtor", False), ("align", 0), ("packed", False)):
             if getattr(c, attr) != empty:
                 q = copy.deepcopy(p)
                 setattr(q.classes[i], attr, empty)
                 yield q
         for j, f in enumerate(c.fields):
-            for attr, empty in (("nua", False), ("align", 0)):
-                if getattr(f, attr) != empty:
-                    q = copy.deepcopy(p)
-                    setattr(q.classes[i].fields[j], attr, empty)
-                    yield q
+            smaller = [(a, e) for a, e in (("nua", False), ("align", 0))
+                       if getattr(f, a) != e]
             if f.kind in ("array", "record_array") and f.count > 1:
-                q = copy.deepcopy(p)
-                q.classes[i].fields[j].count = 1
-                yield q
+                smaller.append(("count", 1))
             if f.kind == "bitfield" and f.width > 1:
+                smaller.append(("width", f.width // 2))
+            for attr, value in smaller:
                 q = copy.deepcopy(p)
-                q.classes[i].fields[j].width = f.width // 2 or 1
+                setattr(q.classes[i].fields[j], attr, value)
                 yield q

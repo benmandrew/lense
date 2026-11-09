@@ -11,6 +11,13 @@
 
       # Clang's C++ API changes every major release; CMake enforces the same pin.
       llvmFor = pkgs: pkgs.llvmPackages_23;
+      version = "0.1.0";
+
+      # What the CMake build reads, plus the directories in `extra`.
+      sourceWith = extra: nixpkgs.lib.fileset.toSource {
+        root = ./.;
+        fileset = nixpkgs.lib.fileset.unions ([ ./CMakeLists.txt ./src ./tests ] ++ extra);
+      };
 
       # Compilers that the fuzzer uses to check lense against real object code.
       # Clang 23 must agree with lense. GCC is a second, independent
@@ -35,15 +42,8 @@
         let llvm = llvmFor pkgs; in rec {
           default = llvm.stdenv.mkDerivation (oracleEnv pkgs // {
             pname = "lense";
-            version = "0.1.0";
-            src = nixpkgs.lib.fileset.toSource {
-              root = ./.;
-              fileset = nixpkgs.lib.fileset.unions [
-                ./CMakeLists.txt
-                ./src
-                ./tests
-              ];
-            };
+            inherit version;
+            src = sourceWith [ ];
             nativeBuildInputs = [ pkgs.cmake pkgs.ninja ];
             buildInputs = [ llvm.llvm llvm.libclang ];
             nativeCheckInputs = [ pkgs.python3 ];
@@ -94,16 +94,8 @@
           # module. The test suite runs the Node build of the CLI.
           wasm = pkgs.stdenv.mkDerivation (oracleEnv pkgs // {
             pname = "lense-wasm";
-            version = "0.1.0";
-            src = nixpkgs.lib.fileset.toSource {
-              root = ./.;
-              fileset = nixpkgs.lib.fileset.unions [
-                ./CMakeLists.txt
-                ./src
-                ./tests
-                ./wasm
-              ];
-            };
+            inherit version;
+            src = sourceWith [ ./wasm ];
             nativeBuildInputs = [ pkgs.emscripten pkgs.cmake pkgs.ninja pkgs.python3 pkgs.nodejs ];
             configurePhase = ''
               runHook preConfigure
@@ -122,7 +114,7 @@
           # The browser front end, ready to serve as static files.
           web = pkgs.buildNpmPackage {
             pname = "lense-web";
-            version = "0.1.0";
+            inherit version;
             src = ./web;
             npmDeps = pkgs.importNpmLock { npmRoot = ./web; };
             npmConfigHook = pkgs.importNpmLock.npmConfigHook;

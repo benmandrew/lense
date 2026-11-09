@@ -28,18 +28,13 @@ set(perms
 
 file(REMOVE_RECURSE "${OUT}")
 file(COPY "${RESOURCE}/include" DESTINATION "${OUT}/clang" ${perms})
-file(GLOB unused
-  "${OUT}/clang/include/__clang_cuda_*" "${OUT}/clang/include/__clang_hip_*"
-  "${OUT}/clang/include/__clang_gpu_*" "${OUT}/clang/include/__clang_spirv_*"
-  "${OUT}/clang/include/*_wrappers" "${OUT}/clang/include/hlsl*"
-  "${OUT}/clang/include/opencl-c*.h" "${OUT}/clang/include/hexagon_*.h"
-  "${OUT}/clang/include/hvx_hexagon_protos.h" "${OUT}/clang/include/altivec.h"
-  "${OUT}/clang/include/htm*intrin.h" "${OUT}/clang/include/vecintrin.h"
-  "${OUT}/clang/include/s390intrin.h" "${OUT}/clang/include/larchintrin.h"
-  "${OUT}/clang/include/lasxintrin.h" "${OUT}/clang/include/lsxintrin.h"
-  "${OUT}/clang/include/msa.h" "${OUT}/clang/include/gpuintrin.h"
-  "${OUT}/clang/include/amdgpuintrin.h" "${OUT}/clang/include/nvptxintrin.h"
-  "${OUT}/clang/include/spirvintrin.h")
+set(unused
+  __clang_cuda_* __clang_hip_* __clang_gpu_* __clang_spirv_* *_wrappers hlsl*
+  opencl-c*.h hexagon_*.h hvx_hexagon_protos.h altivec.h htm*intrin.h
+  vecintrin.h s390intrin.h larchintrin.h lasxintrin.h lsxintrin.h msa.h
+  gpuintrin.h amdgpuintrin.h nvptxintrin.h spirvintrin.h)
+list(TRANSFORM unused PREPEND "${OUT}/clang/include/")
+file(GLOB unused ${unused})
 file(REMOVE_RECURSE ${unused})
 
 set(skip

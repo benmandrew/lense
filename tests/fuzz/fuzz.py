@@ -72,6 +72,17 @@ class Prepared:
     out: Outcome = field(default_factory=Outcome)
 
 
+def write(path: str, text: str) -> str:
+    with open(path, "w") as f:
+        f.write(text)
+    return path
+
+
+def kind_of(errors: List[str], other: str) -> str:
+    """"reorder" if every error comes from a reorder check, else other."""
+    return "reorder" if errors and all(oracle.REORDER in l for l in errors) else other
+
+
 def extra_for(p: gen.Program, report: dict):
     """The oracle's view of the model: alignas on each field, and a copy of
     the program for every reorder in the report. Returns an error string if
@@ -124,9 +135,8 @@ class Fuzzer:
     def probe_cross(self) -> None:
         """Drops cross targets that the static compiler cannot handle."""
         with tempfile.TemporaryDirectory() as d:
-            src = os.path.join(d, "probe.cpp")
-            with open(src, "w") as f:
-                f.write("struct S { int x; };\nstatic_assert(sizeof(S) == 4, \"\");\n")
+            src = write(os.path.join(d, "probe.cpp"),
+                        "struct S { int x; };\nstatic_assert(sizeof(S) == 4, \"\");\n")
             for name, flag in list(self.cross.items()):
                 p = self.run([self.args.static_cxx, "-std=c++20", "-fsyntax-only",
                               flag, src], d)
@@ -167,70 +177,67 @@ class Fuzzer:
         """
         src = gen.render(p)
         files = {"program.cpp": src}
-        with tempfile.TemporaryDirectory() as d:
-            path = os.path.join(d, "program.cpp")
-            with open(path, "w") as f:
-                f.write(src)
 
+        def fail(kind: str, detail: str) -> Outcome:
+            return Outcome(failure=Failure(kind, detail, files))
+
+        def checked(report: dict, tag: str = ""):
+            """The report's Extra if it has the properties, else an Outcome."""
+            errs = props.check_report(report)
+            if errs:
+                return fail("property" + tag, "\n".join(errs))
+            extra = extra_for(p, report)
+            return fail("reorder-fields" + tag, extra) if isinstance(extra, str) else extra
+
+        with tempfile.TemporaryDirectory() as d:
+            path = write(os.path.join(d, "program.cpp"), src)
             host = [f"--target={self.args.host_target}"] if self.args.host_target else []
             r = self.lense(path, d, "--json", *host)
             if (why := self.crashed(r)):
-                return Outcome(failure=Failure("crash", f"lense --json: {why}\n{r.stderr}", files))
+                return fail("crash", f"lense --json: {why}\n{r.stderr}")
             if r.returncode == 1:
                 return Outcome(discarded=True)
             try:
                 report = json.loads(r.stdout)
             except json.JSONDecodeError as e:
-                return Outcome(failure=Failure("bad-json", str(e), files))
+                return fail("bad-json", str(e))
             files["report.json"] = r.stdout
 
-            again = self.lense(path, d, "--json", *host)
-            if again.stdout != r.stdout:
-                return Outcome(failure=Failure("nondeterministic", "two runs differ", files))
+            if self.lense(path, d, "--json", *host).stdout != r.stdout:
+                return fail("nondeterministic", "two runs differ")
             text = self.lense(path, d, "--color=false", *host)
             if text.returncode != 0:
-                return Outcome(failure=Failure("text-mode", f"exit {text.returncode}\n{text.stderr}", files))
-
-            errs = props.check_report(report)
-            if errs:
-                return Outcome(failure=Failure("property", "\n".join(errs), files))
+                return fail("text-mode", f"exit {text.returncode}\n{text.stderr}")
+            # Before extra_for, which looks every reported record up in p.
             want = sorted(c.name for c in p.classes)
             got = sorted(rec["name"] for rec in report["records"])
             if want != got:
-                return Outcome(failure=Failure("records", f"want {want}, got {got}", files))
-            extra = extra_for(p, report)
-            if isinstance(extra, str):
-                return Outcome(failure=Failure("reorder-fields", extra, files))
+                return fail("records", f"want {want}, got {got}")
+            extra = checked(report)
+            if isinstance(extra, Outcome):
+                return extra
             # Saved with failures: a standalone checker for this case alone.
             files["checker.cpp"] = oracle.runtime_checker(src, report, extra)
 
             for name, flag in self.cross.items():
                 rc = self.lense(path, d, "--json", flag)
                 if (why := self.crashed(rc)):
-                    return Outcome(failure=Failure("crash", f"lense {flag}: {why}\n{rc.stderr}", files))
+                    return fail("crash", f"lense {flag}: {why}\n{rc.stderr}")
                 if rc.returncode == 1:
                     continue  # Valid on the host but not on this target.
                 cross_report = json.loads(rc.stdout)
                 files[f"report.{name}.json"] = rc.stdout
-                errs = props.check_report(cross_report)
-                if errs:
-                    return Outcome(failure=Failure(f"property:{name}", "\n".join(errs), files))
-                cross_extra = extra_for(p, cross_report)
-                if isinstance(cross_extra, str):
-                    return Outcome(failure=Failure(f"reorder-fields:{name}",
-                                                   cross_extra, files))
-                spath = os.path.join(d, f"static.{name}.cpp")
+                cross_extra = checked(cross_report, f":{name}")
+                if isinstance(cross_extra, Outcome):
+                    return cross_extra
                 static = oracle.static_checker(src, cross_report, cross_extra)
                 files[f"static.{name}.cpp"] = static
-                with open(spath, "w") as f:
-                    f.write(static)
+                spath = write(os.path.join(d, f"static.{name}.cpp"), static)
                 sc = self.run([self.args.static_cxx, "-std=c++20", "-fsyntax-only",
                                "-w", flag, spath], d)
                 if sc.returncode != 0:
                     errors = [l for l in sc.stderr.splitlines() if "error:" in l]
-                    kind = "reorder" if errors and all(
-                        oracle.REORDER in l for l in errors) else "static"
-                    return Outcome(failure=Failure(f"{kind}:{name}", sc.stderr, files))
+                    return fail(f"{kind_of(errors, 'static')}:{name}", sc.stderr)
         return Prepared(src, report, files, extra)
 
     def batch(self, cxx: str, cases: List[Prepared]) -> List[Optional[Failure]]:
@@ -257,10 +264,8 @@ class Fuzzer:
         Always settles at least one case.
         """
         with tempfile.TemporaryDirectory() as d:
-            cpath = os.path.join(d, "checker.cpp")
-            with open(cpath, "w") as f:
-                f.write(oracle.batch_checker([(c.src, c.report, c.extra)
-                                           for c in cases]))
+            cpath = write(os.path.join(d, "checker.cpp"), oracle.batch_checker(
+                [(c.src, c.report, c.extra) for c in cases]))
             exe = os.path.join(d, "checker")
             c = self.run([cxx, "-std=c++20", "-O0", "-w", "-o", exe, cpath], d)
             if c.returncode != 0:
@@ -288,10 +293,7 @@ class Fuzzer:
                 res[i] = None
             elif n is not None:
                 fails = [l for l in lines if l.startswith("FAIL ")]
-                kind = "reorder" if fails and all(
-                    l.startswith("FAIL " + oracle.REORDER) for l in fails) \
-                    else "runtime-mismatch"
-                res[i] = Failure(kind, f"{cxx}: exit 1\n" +
+                res[i] = Failure(kind_of(fails, "runtime-mismatch"), f"{cxx}: exit 1\n" +
                                  "".join(l + "\n" for l in lines), cases[i].files)
         if x.returncode != 0:
             running = [i for i, (_, n) in seen.items() if n is None]
@@ -332,24 +334,25 @@ class Fuzzer:
         return [self.shrink_outcome(p, out)
                 for p, out in zip(progs, self.check_programs(progs))]
 
+    def shrink_failure(self, p: gen.Program, fail: Failure, budget: int,
+                       found: Callable[[gen.Program], List[Optional[Failure]]]) -> Failure:
+        """The failure of fail's kind that found() gives for the smallest
+        variant of p that still has one."""
+        def same(q: gen.Program) -> Optional[Failure]:
+            return next((f for f in found(q) if f and f.kind == fail.kind), None)
+        return same(self.shrink(p, lambda q: same(q) is not None, budget)) or fail
+
     def shrink_outcome(self, p: gen.Program, out: Outcome) -> Outcome:
-        if out.failure and not self.args.no_shrink:
-            kind = out.failure.kind
-            small = self.shrink(p, lambda q: (
-                (o := self.check_program(q, advisory=False)).failure is not None
-                and o.failure.kind == kind), self.args.shrink_budget)
-            out.failure = self.check_program(small, advisory=False).failure or out.failure
-        if out.advisories and not self.args.no_shrink and \
-                self.args.advisory_shrink_budget > 0:
-            shrunk = []
-            for adv in out.advisories:
-                kind = adv.kind
-                small = self.shrink(p, lambda q: any(
-                    a.kind == kind for a in self.check_program(q).advisories),
-                    self.args.advisory_shrink_budget)
-                res = [a for a in self.check_program(small).advisories if a.kind == kind]
-                shrunk.append(res[0] if res else adv)
-            out.advisories = shrunk
+        if self.args.no_shrink:
+            return out
+        if out.failure:
+            out.failure = self.shrink_failure(
+                p, out.failure, self.args.shrink_budget,
+                lambda q: [self.check_program(q, advisory=False).failure])
+        if self.args.advisory_shrink_budget > 0:
+            out.advisories = [self.shrink_failure(
+                p, adv, self.args.advisory_shrink_budget,
+                lambda q: self.check_program(q).advisories) for adv in out.advisories]
         return out
 
     # -- mutate mode ------------------------------------------------------
@@ -387,9 +390,7 @@ class Fuzzer:
     def robust(self, src: str) -> Optional[Failure]:
         files = {"program.cpp": src}
         with tempfile.TemporaryDirectory() as d:
-            path = os.path.join(d, "program.cpp")
-            with open(path, "w") as f:
-                f.write(src)
+            path = write(os.path.join(d, "program.cpp"), src)
             for flags in (["--json"], ["--json", CROSS["msvc"]], ["--color=false"]):
                 r = self.lense(path, d, *flags)
                 if (why := self.crashed(r)):
@@ -433,10 +434,8 @@ def save(out_dir: str, mode: str, seed: int, f: Failure) -> str:
     shutil.rmtree(d, ignore_errors=True)
     os.makedirs(d)
     for name, content in f.files.items():
-        with open(os.path.join(d, name), "w") as fh:
-            fh.write(content)
-    with open(os.path.join(d, "failure.txt"), "w") as fh:
-        fh.write(f"{f.kind}\n{f.detail}\n")
+        write(os.path.join(d, name), content)
+    write(os.path.join(d, "failure.txt"), f"{f.kind}\n{f.detail}\n")
     return d
 
 
@@ -481,10 +480,9 @@ def main() -> int:
     seed0 = args.seed if args.seed is not None else int(time.time())
 
     fz = Fuzzer(args)
-    if args.mode == "oracle":
-        fz.probe_cross()
     seeds = [seed0 + i for i in range(args.iterations)]
     if args.mode == "oracle":
+        fz.probe_cross()
         run_chunk = fz.oracle_chunk
         # Smaller batches when there are too few cases to keep every job busy.
         size = max(1, min(args.batch, -(-len(seeds) // args.jobs)))

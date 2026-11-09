@@ -31,6 +31,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from props import is_field
+
 PRELUDE = r"""
 #include <cstddef>
 #include <cstdio>
@@ -96,23 +98,25 @@ def reorder_ns(name: str) -> str:
     return f"lense_reorder_{name}"
 
 
+def reorders(extra: Optional[Extra]) -> List[Tuple[str, str, int]]:
+    return extra.reorders if extra else []
+
+
 def reorder_decls(extra: Optional[Extra]) -> List[str]:
     out = []
-    for name, program, _ in (extra.reorders if extra else []):
-        out.append(f"namespace {reorder_ns(name)} {{")
-        out.append(program)
-        out.append(f"}}  // namespace {reorder_ns(name)}")
+    for name, program, _ in reorders(extra):
+        out += [f"namespace {reorder_ns(name)} {{", program,
+                f"}}  // namespace {reorder_ns(name)}"]
     return out
 
 
 def direct_fields(r: dict, extra: Optional[Extra]):
     """(name, alignas, reported align) of r's direct named non-bitfields."""
-    if extra is None or r["name"] not in extra.aligns:
+    aligns = extra.aligns.get(r["name"]) if extra else None
+    if aligns is None:
         return
-    aligns = extra.aligns[r["name"]]
     for n in r["members"]:
-        named = n["kind"] == "field" or (n["kind"] == "record" and n["role"] == "field")
-        if named and n.get("name") in aligns and "align" in n:
+        if is_field(n) and n.get("name") in aligns and "align" in n:
             yield n["name"], aligns[n["name"]], n["align"]
 
 
@@ -133,6 +137,9 @@ class Checker:
     def check(self, what: str, got: str, want) -> None:
         self.emit(f"lense_check({cstr(what)}, (long long)({got}), {want}LL);")
 
+    def check_expr(self, expr: str, want) -> None:
+        self.check(expr, expr, want)
+
     def offset_of(self, expr: str) -> str:
         return f"reinterpret_cast<const char *>(&({expr})) - b"
 
@@ -140,12 +147,10 @@ class Checker:
         name = r["name"]
         buf = f"buf_{name}"
         self.lines.append(f"  {{ // {name}")
-        self.check(f"sizeof({name})", f"sizeof({name})", r["size"])
-        self.check(f"alignof({name})", f"alignof({name})", r["align"])
-        for key, trait, _ in TRAITS:
-            if "traits" in r:
-                self.check(f"{trait}<{name}>", f"{trait}<{name}>",
-                           int(r["traits"][key]))
+        self.check_expr(f"sizeof({name})", r["size"])
+        self.check_expr(f"alignof({name})", r["align"])
+        for key, trait, _ in TRAITS if "traits" in r else []:
+            self.check_expr(f"{trait}<{name}>", int(r["traits"][key]))
         for f, alignas, want in direct_fields(r, self.extra):
             self.check(f"align of {name}.{f}",
                        f"lense_max(alignof(decltype({name}::{f})), {alignas})", want)
@@ -222,7 +227,7 @@ class Checker:
             self.lines = []
             self.record(r)
             body.extend(self.lines)
-        for name, _, size in (self.extra.reorders if self.extra else []):
+        for name, _, size in reorders(self.extra):
             body.append(f"  lense_check({cstr(REORDER + name + ': sizeof')}, "
                         f"(long long)sizeof({reorder_ns(name)}::{name}), {size}LL);")
         return body
@@ -253,22 +258,15 @@ def batch_checker(cases: List[Tuple[str, dict, Optional[Extra]]]) -> str:
     """
     out = [PRELUDE]
     for i, (program, report, extra) in enumerate(cases):
-        out.append(f"namespace lense_case{i} {{")
-        out.append(program)
-        out.extend(reorder_decls(extra))
-        out.append("static void run() {")
-        out.extend(Checker(report, extra).body())
-        out.append("}")
-        out.append(f"}}  // namespace lense_case{i}")
-        out.append("")
-    out.append("int main() {")
-    out.append("  std::setvbuf(stdout, nullptr, _IONBF, 0);")
+        out += [f"namespace lense_case{i} {{", program, *reorder_decls(extra),
+                "static void run() {", *Checker(report, extra).body(), "}",
+                f"}}  // namespace lense_case{i}", ""]
+    out += ["int main() {", "  std::setvbuf(stdout, nullptr, _IONBF, 0);"]
     for i in range(len(cases)):
         out.append(f'  {{ int before = lense_failures; std::printf("{BEGIN}{i}\\n"); '
                    f'lense_case{i}::run(); std::printf("{END}{i} %d\\n", '
                    "lense_failures - before); }")
-    out.append("  return 0;")
-    out.append("}")
+    out += ["  return 0;", "}"]
     return "\n".join(out) + "\n"
 
 
@@ -280,7 +278,7 @@ def static_checker(program: str, report: dict,
 
     def walk(path: str, members: List[dict], root: str):
         for n in members:
-            if n["kind"] == "field" or (n["kind"] == "record" and n["role"] == "field"):
+            if is_field(n):
                 p = f"{path}.{n['name']}" if path else n["name"]
                 out.append(f"static_assert(__builtin_offsetof({root}, {p}) == "
                            f"{n['offset']}, {cstr('offset of ' + root + '.' + p)});")
@@ -293,17 +291,16 @@ def static_checker(program: str, report: dict,
                    f"{cstr('sizeof ' + name)});")
         out.append(f"static_assert(alignof({name}) == {r['align']}, "
                    f"{cstr('alignof ' + name)});")
-        for key, _, builtin in TRAITS:
-            if "traits" in r:
-                want = "true" if r["traits"][key] else "false"
-                out.append(f"static_assert({builtin}({name}) == {want}, "
-                           f"{cstr(key + ' ' + name)});")
+        for key, _, builtin in TRAITS if "traits" in r else []:
+            want = "true" if r["traits"][key] else "false"
+            out.append(f"static_assert({builtin}({name}) == {want}, "
+                       f"{cstr(key + ' ' + name)});")
         for f, alignas, want in direct_fields(r, extra):
             a = f"alignof(decltype({name}::{f}))"
             out.append(f"static_assert(({a} > {alignas} ? {a} : {alignas}) == "
                        f"{want}, {cstr('align of ' + name + '.' + f)});")
         walk("", r["members"], name)
-    for name, _, size in (extra.reorders if extra else []):
+    for name, _, size in reorders(extra):
         out.append(f"static_assert(sizeof({reorder_ns(name)}::{name}) == {size}, "
                    f"{cstr(REORDER + name + ': sizeof')});")
     return "\n".join(out) + "\n"

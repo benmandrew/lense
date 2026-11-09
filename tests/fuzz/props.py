@@ -33,12 +33,15 @@ def pow2(n) -> bool:
     return isinstance(n, int) and n > 0 and not n & (n - 1)
 
 
+def is_field(n: dict) -> bool:
+    """A named non-bitfield data member, of scalar or record type."""
+    return n["kind"] == "field" or (n["kind"] == "record" and n["role"] == "field")
+
+
 def direct_fields(r: dict) -> List[dict]:
     """The record's non-static data members in declaration order, as
     clang's RecordDecl::fields() gives them (unnamed bitfields included)."""
-    return [n for n in r["members"]
-            if n["kind"] in ("field", "bitfield") or
-            (n["kind"] == "record" and n["role"] == "field")]
+    return [n for n in r["members"] if n["kind"] == "bitfield" or is_field(n)]
 
 
 def check_annotations(r: dict, cache_line: int, err) -> None:
@@ -79,17 +82,18 @@ def check_annotations(r: dict, cache_line: int, err) -> None:
     # Padding does not split a run (it is not a member); numbers go 1, 2, ...
     # in pre-order.
     want = {}
-    count = [0]
+    count = 0
 
     def number(members: List[dict], union: bool) -> None:
+        nonlocal count
         run = False
         for n in members:
             if n["kind"] == "padding":
                 continue
             if n["kind"] == "bitfield" and n["bit_size"]:
                 if union or not run:
-                    count[0] += 1
-                want[id(n)] = count[0]
+                    count += 1
+                want[id(n)] = count
                 run = not union
             else:
                 run = False
@@ -180,7 +184,7 @@ def check_record(r: dict, cache_line: int = 0) -> List[str]:
     def err(msg: str) -> None:
         errs.append(f"{name}: {msg}")
 
-    if r["align"] <= 0 or r["align"] & (r["align"] - 1):
+    if not pow2(r["align"]):
         err(f"alignment {r['align']} is not a power of two")
         return errs
     if r["size"] % r["align"]:

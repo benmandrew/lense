@@ -2,8 +2,13 @@
 # JSON for a Microsoft target, and text for the Itanium target.
 #
 # Regenerate the expected files with:  LENSE_UPDATE=1 ctest --test-dir build
-set(ITANIUM --target=x86_64-linux-gnu)
-set(MSVC --target=x86_64-pc-windows-msvc)
+# Flags are |-separated, because a ; would split the -D argument.
+set(itanium_flags "--json|--target=x86_64-linux-gnu")
+set(msvc_flags "--json|--target=x86_64-pc-windows-msvc")
+set(text_flags "--color=false|--target=x86_64-linux-gnu")
+set(itanium_ext itanium.json)
+set(msvc_ext msvc.json)
+set(text_ext txt)
 
 file(GLOB cases CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/cases/*.cpp"
@@ -16,17 +21,8 @@ foreach(input ${cases})
     set(rc 1)
   endif()
   foreach(variant itanium msvc text)
-    if(variant STREQUAL "itanium")
-      set(flags --json ${ITANIUM})
-      set(ext itanium.json)
-    elseif(variant STREQUAL "msvc")
-      set(flags --json ${MSVC})
-      set(ext msvc.json)
-    else()
-      set(flags --color=false ${ITANIUM})
-      set(ext txt)
-    endif()
-    string(REPLACE ";" "|" flags "${flags}")
+    set(ext ${${variant}_ext})
+    set(flags ${${variant}_flags})
     add_test(NAME ${name}.${variant}
       COMMAND ${CMAKE_COMMAND}
         -DLENSE=${LENSE_TEST_EXE}

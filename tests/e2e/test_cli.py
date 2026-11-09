@@ -30,8 +30,33 @@ def lense(*args: str, stdin: str | None = None, cwd: str | None = None):
                           text=True, cwd=cwd, timeout=120)
 
 
-def records(stdout: str) -> dict:
-    return {r["name"]: r for r in json.loads(stdout)["records"]}
+def records(report: str | dict) -> dict:
+    """A JSON report, as text or parsed, keyed by record name."""
+    if isinstance(report, str):
+        report = json.loads(report)
+    return {r["name"]: r for r in report["records"]}
+
+
+def linux_json(*args: str, stdin: str | None = None) -> dict:
+    return records(lense("--json", LINUX, *args, stdin=stdin).stdout)
+
+
+def linux_text(*args: str, stdin: str | None = None) -> str:
+    return lense("--color=false", LINUX, *args, stdin=stdin).stdout
+
+
+def named(rec: dict) -> dict:
+    """Every named member of a record, at any depth, by name."""
+    out = {}
+
+    def walk(ms):
+        for m in ms:
+            if m.get("name"):
+                out[m["name"]] = m
+            if m["kind"] == "record":
+                walk(m["members"])
+    walk(rec["members"])
+    return out
 
 
 def vptr_offsets(members: list) -> list:
@@ -45,11 +70,9 @@ def vptr_offsets(members: list) -> list:
 
 class Cli(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.dir = self.tmp.name
-
-    def tearDown(self):
-        self.tmp.cleanup()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.dir = tmp.name
 
     def write(self, name: str, text: str) -> str:
         path = os.path.join(self.dir, name)
@@ -77,12 +100,10 @@ class Cli(unittest.TestCase):
         self.assertIn("cannot read", r.stderr)
 
     def test_bad_lang_is_usage_error(self):
-        r = lense("--lang=rust", "-", stdin="")
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(lense("--lang=rust", "-", stdin="").returncode, 2)
 
     def test_file_input(self):
-        path = self.write("t.cpp", DERIVED)
-        r = lense("--json", LINUX, path)
+        r = lense("--json", LINUX, self.write("t.cpp", DERIVED))
         self.assertEqual(r.returncode, 0, r.stderr)
         recs = records(r.stdout)
         self.assertEqual(set(recs), {"Base", "Other", "Derived"})
@@ -99,8 +120,7 @@ class Cli(unittest.TestCase):
         self.assertEqual(lense("--json", LINUX, "-", stdin=src).returncode, 1)
 
     def test_c_file_by_extension(self):
-        path = self.write("t.c", "struct s { char c; double d; };\n")
-        r = lense("--json", LINUX, path)
+        r = lense("--json", LINUX, self.write("t.c", "struct s { char c; double d; };\n"))
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(records(r.stdout)["s"]["padding_bits"], 7 * 8)
 
@@ -108,24 +128,23 @@ class Cli(unittest.TestCase):
 
     def test_record_filter(self):
         path = self.write("t.cpp", DERIVED)
-        r = lense("--json", LINUX, "--record=Derived,Other", path)
-        self.assertEqual(set(records(r.stdout)), {"Derived", "Other"})
+        self.assertEqual(set(linux_json("--record=Derived,Other", path)), {"Derived", "Other"})
         r = lense("--json", LINUX, "--record=Nothing", path)
         self.assertEqual(r.returncode, 0)
         self.assertEqual(records(r.stdout), {})
 
     def test_qualified_record_name(self):
-        r = lense("--json", LINUX, "--record=a::b::S", "-",
-                  stdin="namespace a { namespace b { struct S { int x; }; } }")
-        self.assertEqual(set(records(r.stdout)), {"a::b::S"})
+        recs = linux_json("--record=a::b::S", "-",
+                          stdin="namespace a { namespace b { struct S { int x; }; } }")
+        self.assertEqual(set(recs), {"a::b::S"})
 
     def test_vptrs_without_vtables(self):
         path = self.write("t.cpp", DERIVED)
-        d = records(lense("--json", LINUX, path).stdout)["Derived"]
+        d = linux_json(path)["Derived"]
         self.assertNotIn("vtables", d)
         self.assertNotIn("points_to", json.dumps(d))
         self.assertEqual(vptr_offsets(d["members"]), [0, 16])
-        text = lense("--color=false", LINUX, path).stdout
+        text = linux_text(path)
         self.assertNotIn("vtable for", text)
         self.assertIn("vptr", text)
         self.assertNotEqual(lense("--vtables", path).returncode, 0)
@@ -133,12 +152,11 @@ class Cli(unittest.TestCase):
     def test_source_above_each_record(self):
         path = self.write("t.cpp", "// Two records.\n"
                           "struct A {\n  int a;\n};\nstruct B { char b; };\n")
-        text = lense("--color=false", LINUX, "--source", path).stdout
+        text = linux_text("--source", path)
         self.assertTrue(text.startswith(
             "   2 | struct A {\n   3 |   int a;\n   4 | };\nstruct A  size 4"), text)
         self.assertIn("\n   5 | struct B { char b; };\nstruct B  size 1", text)
-        plain = lense("--color=false", LINUX, path).stdout
-        self.assertNotIn(" | ", plain)
+        self.assertNotIn(" | ", linux_text(path))
 
     def test_source_highlighting(self):
         path = self.write("t.cpp", "struct A {\n  /* two\n     lines */\n"
@@ -153,9 +171,9 @@ class Cli(unittest.TestCase):
 
     def test_source_in_json_only_when_asked(self):
         path = self.write("t.cpp", "\nstruct A { int a; };\n")
-        a = records(lense("--json", LINUX, "--source", path).stdout)["A"]
-        self.assertEqual(a["source"], {"line": 2, "text": "struct A { int a; };\n"})
-        self.assertNotIn("source", records(lense("--json", LINUX, path).stdout)["A"])
+        self.assertEqual(linux_json("--source", path)["A"]["source"],
+                         {"line": 2, "text": "struct A { int a; };\n"})
+        self.assertNotIn("source", linux_json(path)["A"])
 
     def test_source_shapes(self):
         path = self.write("t.cpp", """\
@@ -169,7 +187,7 @@ void f() {
     } l;
 }
 """)
-        recs = records(lense("--json", LINUX, "--source", path).stdout)
+        recs = linux_json("--source", path)
         # An instantiation shows its template.
         self.assertEqual(recs["Box<int>"]["source"],
                          {"line": 1, "text": "template <typename T>\nstruct Box { T v; };\n"})
@@ -187,8 +205,7 @@ void f() {
         self.assertEqual(itanium["abi"], "itanium")
         self.assertEqual(itanium["target"], "x86_64-unknown-linux-gnu")
         self.assertEqual(msvc["abi"], "microsoft")
-        msvc_derived = {r["name"]: r for r in msvc["records"]}["Derived"]
-        self.assertEqual(vptr_offsets(msvc_derived["members"]), [0, 16])
+        self.assertEqual(vptr_offsets(records(msvc)["Derived"]["members"]), [0, 16])
         self.assertEqual(json.loads(lense("--json", "--target=i686-linux-gnu", path).stdout)
                          ["pointer_size"], 4)
 
@@ -236,35 +253,22 @@ void f() {
         src = "#include <string>\nstruct S { std::string s; bool b; };\n"
         collapsed = lense("--json", "-", stdin=src)
         self.assertEqual(collapsed.returncode, 0, collapsed.stderr)
-        s = records(collapsed.stdout)["S"]["members"][0]
-        self.assertEqual(s["kind"], "field")
+        self.assertEqual(records(collapsed.stdout)["S"]["members"][0]["kind"], "field")
         expanded = records(lense("--json", "--expand-system", "-", stdin=src).stdout)
         self.assertEqual(expanded["S"]["members"][0]["kind"], "record")
 
     def test_color(self):
         path = self.write("t.cpp", DERIVED)
         self.assertIn("\x1b[", lense("--color", LINUX, path).stdout)
-        self.assertNotIn("\x1b[", lense("--color=false", LINUX, path).stdout)
+        self.assertNotIn("\x1b[", linux_text(path))
         # Output to a pipe is not a terminal, so auto means no colour.
         self.assertNotIn("\x1b[", lense(LINUX, path).stdout)
 
     # -- layout notes --------------------------------------------------------
 
-    def members(self, rec: dict) -> dict:
-        out = {}
-
-        def walk(ms):
-            for m in ms:
-                if m.get("name"):
-                    out[m["name"]] = m
-                if m["kind"] == "record":
-                    walk(m["members"])
-        walk(rec["members"])
-        return out
-
     def test_member_alignment(self):
         src = "struct S { char c; alignas(8) int i; double d[2]; };\n"
-        m = self.members(records(lense("--json", LINUX, "-", stdin=src).stdout)["S"])
+        m = named(linux_json("-", stdin=src)["S"])
         self.assertEqual((m["c"]["align"], m["i"]["align"], m["d"]["align"]), (1, 8, 8))
 
     def test_align_source(self):
@@ -275,40 +279,37 @@ void f() {
                "struct V { virtual void f(); };\n"
                "struct D : M { char e; };\n"
                "struct N { char c; };\n")
-        recs = records(lense("--json", LINUX, "-", stdin=src).stdout)
         got = {n: (r["align_source"]["kind"], r["align_source"].get("text"))
-               for n, r in recs.items()}
+               for n, r in linux_json("-", stdin=src).items()}
         self.assertEqual(got, {
             "M": ("member", "d"), "A": ("attribute", "alignas(16)"),
             "P": ("packed", "__attribute__((packed))"),
             "K": ("pack", "#pragma pack(2)"), "V": ("member", "vptr"),
             "D": ("member", "base M"), "N": ("none", None)})
-        text = lense("--color=false", LINUX, "--record=A", "-", stdin=src).stdout
-        self.assertIn("align 16 from alignas(16)", text)
+        self.assertIn("align 16 from alignas(16)", linux_text("--record=A", "-", stdin=src))
 
     def test_unaligned_members(self):
         src = ("struct __attribute__((packed)) P { char c; int i; };\n"
                "struct __attribute__((packed)) Q { int i; };\n"
                "struct S { char c; int i; };\n")
-        recs = records(lense("--json", LINUX, "-", stdin=src).stdout)
-        self.assertTrue(self.members(recs["P"])["i"].get("unaligned"))
+        recs = linux_json("-", stdin=src)
+        self.assertTrue(named(recs["P"])["i"].get("unaligned"))
         # At offset 0, but a Q can sit at any address.
-        self.assertTrue(self.members(recs["Q"])["i"].get("unaligned"))
-        self.assertNotIn("unaligned", self.members(recs["S"])["i"])
-        text = lense("--color=false", LINUX, "--record=P", "-", stdin=src).stdout
-        self.assertIn("int i  (unaligned)", text)
+        self.assertTrue(named(recs["Q"])["i"].get("unaligned"))
+        self.assertNotIn("unaligned", named(recs["S"])["i"])
+        self.assertIn("int i  (unaligned)", linux_text("--record=P", "-", stdin=src))
 
     def test_memory_locations(self):
         src = ("struct S { unsigned a : 3, b : 5; char c; unsigned d : 2;\n"
                "  unsigned : 0; unsigned e : 1; };\n"
                "union U { unsigned x : 1; unsigned y : 2; };\n")
-        recs = records(lense("--json", LINUX, "-", stdin=src).stdout)
-        loc = {n: m.get("memory_location") for n, m in self.members(recs["S"]).items()}
-        self.assertEqual(loc, {"a": 1, "b": 1, "c": None, "d": 2, "e": 3})
-        loc = {n: m.get("memory_location") for n, m in self.members(recs["U"]).items()}
-        self.assertEqual(loc, {"x": 1, "y": 2})
-        text = lense("--color=false", LINUX, "--record=S", "-", stdin=src).stdout
-        self.assertIn("unsigned int b : 5  location 1", text)
+        recs = linux_json("-", stdin=src)
+        for name, want in (("S", {"a": 1, "b": 1, "c": None, "d": 2, "e": 3}),
+                           ("U", {"x": 1, "y": 2})):
+            loc = {n: m.get("memory_location") for n, m in named(recs[name]).items()}
+            self.assertEqual(loc, want)
+        self.assertIn("unsigned int b : 5  location 1",
+                      linux_text("--record=S", "-", stdin=src))
 
     def test_endianness(self):
         src = "struct S { unsigned a : 3; };\nstruct T { int i; };\n"
@@ -323,10 +324,8 @@ void f() {
 
     def test_non_virtual_size_in_text(self):
         src = "struct A { long a; };\nstruct B : virtual A { char b; };\n"
-        text = lense("--color=false", LINUX, "--record=B", "-", stdin=src).stdout
-        self.assertIn("non-virtual size 9", text)
-        self.assertNotIn("non-virtual", lense("--color=false", LINUX, "--record=A", "-",
-                                              stdin=src).stdout)
+        self.assertIn("non-virtual size 9", linux_text("--record=B", "-", stdin=src))
+        self.assertNotIn("non-virtual", linux_text("--record=A", "-", stdin=src))
 
     def test_traits(self):
         src = ("struct I { int a, b; };\n"
@@ -334,28 +333,26 @@ void f() {
                "struct P { char c; int i; };\n"
                "struct C { C(const C &); int i; };\n"
                "struct V { virtual void f(); };\n")
-        recs = records(lense("--json", LINUX, "-", stdin=src).stdout)
-        t = {n: tuple(r["traits"].values()) for n, r in recs.items()}
+        t = {n: tuple(r["traits"].values()) for n, r in linux_json("-", stdin=src).items()}
         self.assertEqual(t, {
             "I": (True, True, True), "F": (True, True, False),
             "P": (True, True, False), "C": (True, False, False),
             "V": (False, False, False)})
-        text = lense("--color=false", LINUX, "--record=P", "-", stdin=src).stdout
         self.assertIn("is_standard_layout yes, is_trivially_copyable yes, "
-                      "has_unique_object_representations no", text)
-        c = records(lense("--json", LINUX, "--lang=c", "-", stdin="struct I { int a; };").stdout)
+                      "has_unique_object_representations no",
+                      linux_text("--record=P", "-", stdin=src))
+        c = linux_json("--lang=c", "-", stdin="struct I { int a; };")
         self.assertNotIn("traits", c["I"])
 
     def test_cache_lines(self):
         src = "struct S { char c; char buf[100]; int tail; };\n"
-        r = records(lense("--json", LINUX, "-", stdin=src).stdout)["S"]
-        self.assertTrue(self.members(r)["buf"].get("crosses_cache_line"))
-        self.assertNotIn("crosses_cache_line", self.members(r)["tail"])
-        text = lense("--color=false", LINUX, "-", stdin=src).stdout
+        m = named(linux_json("-", stdin=src)["S"])
+        self.assertTrue(m["buf"].get("crosses_cache_line"))
+        self.assertNotIn("crosses_cache_line", m["tail"])
+        text = linux_text("-", stdin=src)
         self.assertIn("--- cache line 1 (byte 64) ---", text)
         self.assertIn("(crosses cache line)", text)
-        off = lense("--color=false", LINUX, "--cache-line=0", "-", stdin=src).stdout
-        self.assertNotIn("cache line", off)
+        self.assertNotIn("cache line", linux_text("--cache-line=0", "-", stdin=src))
         wide = lense("--json", LINUX, "--cache-line=128", "-", stdin=src).stdout
         self.assertNotIn("crosses_cache_line", wide)
         self.assertEqual(json.loads(wide)["cache_line"], 128)
@@ -371,7 +368,7 @@ void f() {
                "struct Bits { char a; double d; unsigned x : 3, y : 3; };\n"
                "struct Base { virtual void f(); char x; };\n"
                "struct Derived : Base { double d; char e; };\n")
-        recs = records(lense("--json", LINUX, "-", stdin=src).stdout)
+        recs = linux_json("-", stdin=src)
         self.assertEqual(recs["S"]["reorder"], {"size": 16, "order": [1, 0, 2, 3],
                                                 "fields": ["b", "a", "c", "d"]})
         for name in ("Tight", "U", "V"):
@@ -382,8 +379,8 @@ void f() {
         self.assertEqual(order.index(3), order.index(2) + 1)
         # Derived's own fields can go in Base's tail padding.
         self.assertEqual(recs["Derived"]["reorder"]["size"], 24)
-        text = lense("--color=false", LINUX, "--record=S", "-", stdin=src).stdout
-        self.assertIn("reordering the fields saves 8 bytes (size 16): b, a, c, d", text)
+        self.assertIn("reordering the fields saves 8 bytes (size 16): b, a, c, d",
+                      linux_text("--record=S", "-", stdin=src))
 
     def test_compare_text(self):
         src = ("struct L { char c; long l; };\n"
@@ -392,19 +389,16 @@ void f() {
         r = lense("--color=false", LINUX, "--compare=i686-linux-gnu", "-", stdin=src)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("struct I  same on both targets: size 8, align 4", r.stdout)
-        lines = r.stdout.splitlines()
-        row = next(l for l in lines if l.endswith("long l"))
+        row = next(l for l in r.stdout.splitlines() if l.endswith("long l"))
         self.assertTrue(row.startswith("* "), row)
         self.assertEqual(row.split()[1:7], ["8", "8", "8", "4", "4", "4"])
         self.assertIn("  x86_64-unknown-linux-gnu  size 16, align 8 from l", r.stdout)
-        r = lense("--color=false", LINUX, "--compare=x86_64-pc-windows-msvc", "-",
-                  stdin=src)
-        self.assertIn("struct W  only on x86_64-pc-windows-msvc", r.stdout)
+        self.assertIn("struct W  only on x86_64-pc-windows-msvc",
+                      linux_text("--compare=x86_64-pc-windows-msvc", "-", stdin=src))
 
     def test_compare_overrides_target_in_clang_args(self):
-        src = "struct L { long l; };\n"
         r = lense("--color=false", "--compare=i686-linux-gnu", "-", "--", LINUX,
-                  stdin=src)
+                  stdin="struct L { long l; };\n")
         self.assertIn("x86_64-unknown-linux-gnu", r.stdout)
         self.assertIn("i686-unknown-linux-gnu", r.stdout)
 
@@ -414,8 +408,7 @@ void f() {
                                stdin=src).stdout)
         a, b = out["reports"]
         self.assertEqual((a["abi"], b["abi"]), ("itanium", "microsoft"))
-        self.assertEqual((records(json.dumps(a))["L"]["size"],
-                          records(json.dumps(b))["L"]["size"]), (16, 8))
+        self.assertEqual((records(a)["L"]["size"], records(b)["L"]["size"]), (16, 8))
 
     # -- errors and robustness -----------------------------------------------
 
@@ -440,9 +433,9 @@ void f() {
 
     def test_text_matches_json(self):
         path = self.write("t.cpp", DERIVED)
-        recs = records(lense("--json", LINUX, path).stdout)
-        text = lense("--color=false", LINUX, path).stdout
-        headers = [line for line in text.splitlines() if line.startswith("struct ")]
+        recs = linux_json(path)
+        headers = [line for line in linux_text(path).splitlines()
+                   if line.startswith("struct ")]
         self.assertEqual(len(headers), len(recs))
         for line in headers:
             name = line.split()[1]
