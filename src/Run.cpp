@@ -86,7 +86,20 @@ class Consumer : public clang::ASTConsumer {
 public:
   Consumer(const AnalyzeOptions &opts, Report &out) : opts(opts), out(out) {}
   void HandleTranslationUnit(clang::ASTContext &C) override {
-    out = analyze(C, opts);
+    out = analyze(C, opts, walkPreamble);
+  }
+  // A main-file record defined inside a context from the preamble, such as
+  // an instantiation of a header template from a main-file partial
+  // specialisation, is only found by walking the preamble.
+  void HandleTagDeclDefinition(clang::TagDecl *D) override {
+    if (walkPreamble || !llvm::isa<clang::RecordDecl>(D) ||
+        !D->getASTContext().getSourceManager().isInMainFile(D->getLocation()))
+      return;
+    for (const clang::DeclContext *P = D; P; P = P->getLexicalParent())
+      if (clang::Decl::castFromDeclContext(P)->isFromASTFile()) {
+        walkPreamble = true;
+        return;
+      }
   }
   // Only records in the main file are reported, and clang already keeps
   // bodies it needs (constexpr, deduced return types).
@@ -98,6 +111,7 @@ public:
 private:
   const AnalyzeOptions &opts;
   Report &out;
+  bool walkPreamble = false;
 };
 
 class Action : public clang::ASTFrontendAction {

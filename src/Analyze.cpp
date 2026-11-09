@@ -733,9 +733,20 @@ struct Analyzer {
 
 class Collector : public RecursiveASTVisitor<Collector> {
 public:
-  explicit Collector(ASTContext &C) : C(C) {}
+  Collector(ASTContext &C, bool walkPreamble)
+      : C(C), walkPreamble(walkPreamble) {}
 
   bool shouldVisitTemplateInstantiations() const { return true; }
+
+  // A precompiled preamble holds headers, and walking it would deserialise
+  // all of it. An explicit instantiation in the main file moves a header's
+  // specialisation there, so those are still walked.
+  bool TraverseDecl(Decl *D) {
+    if (!walkPreamble && D && D->isFromASTFile() &&
+        !C.getSourceManager().isInMainFile(D->getLocation()))
+      return true;
+    return RecursiveASTVisitor<Collector>::TraverseDecl(D);
+  }
 
   bool VisitRecordDecl(RecordDecl *RD) {
     auto *CXX = dyn_cast<CXXRecordDecl>(RD);
@@ -756,12 +767,13 @@ public:
 
 private:
   ASTContext &C;
+  bool walkPreamble;
   llvm::DenseSet<const RecordDecl *> seen;
 };
 
 } // namespace
 
-Report analyze(ASTContext &C, const AnalyzeOptions &opts) {
+Report analyze(ASTContext &C, const AnalyzeOptions &opts, bool walkPreamble) {
   Analyzer A(C, opts);
   Report report;
   report.target = C.getTargetInfo().getTriple().str();
@@ -770,7 +782,7 @@ Report analyze(ASTContext &C, const AnalyzeOptions &opts) {
   report.bigEndian = C.getTargetInfo().isBigEndian();
   report.cacheLine = opts.cacheLine;
 
-  Collector collector(C);
+  Collector collector(C, walkPreamble);
   collector.TraverseDecl(C.getTranslationUnitDecl());
   for (const RecordDecl *RD : collector.found)
     if (opts.records.empty() ||
