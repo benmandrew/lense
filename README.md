@@ -4,7 +4,7 @@
 
 `lense` prints the memory layout of every C and C++ struct, class and union in a source file: member offsets, padding, base subobjects, and vtable pointers. It reads the layouts from clang 23 through *LibTooling*, and also runs in a browser as WebAssembly.
 
-```
+```console
 $ printf 'struct Msg { char tag; long len; char flags; };\n' | lense --target=x86_64-linux-gnu -
 struct Msg  size 24, align 8 from len, padding 14 bytes
   is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations no
@@ -28,7 +28,7 @@ Without Nix, pass any LLVM 23 install to CMake with `-DLLVM_DIR=<prefix>/lib/cma
 
 ## Usage
 
-```
+```sh
 lense [options] <file | -> [-- <clang arguments>]
 ```
 

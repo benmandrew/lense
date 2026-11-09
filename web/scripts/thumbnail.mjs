@@ -1,4 +1,4 @@
-// Renders public/og.png, the 1200x630 link-preview image, from the page itself.
+// Renders public/og.png, the 1800x945 link-preview image, from the page itself.
 //
 //   npm run thumbnail
 //
@@ -6,9 +6,9 @@
 // LENSE_CHROME to the path of another Chromium-based browser.
 //
 // A shrunk screenshot is unreadable, so the page is rendered in a 600x315
-// window at 2x: text keeps its normal size relative to the image. The
-// controls, gutters and member table are hidden to leave the source next to
-// one record's byte map.
+// window at 3x: text keeps its normal size relative to the image. The top
+// bar, gutters and member table are hidden to leave the source next to one
+// record's byte map.
 import { deflateRawSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
@@ -40,9 +40,7 @@ const hash = deflateRawSync(JSON.stringify(state)).toString('base64url');
 const css = `
   html, body { height: 100% !important; }
   body { display: flex !important; flex-direction: column !important; }
-  .bar > :not(h1):not(.tagline) { display: none !important; }
-  .bar { flex-wrap: nowrap !important; align-items: baseline !important; gap: 10px !important; }
-  .tagline { font-size: 13px; color: var(--ink-2); }
+  .bar { display: none !important; }
   main { flex: 1 !important; grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr) !important; }
   #editor { height: auto !important; border-bottom: none !important; border-right: 1px solid var(--border) !important; }
   .cm-editor .cm-gutters .cm-foldGutter, .cm-editor .cm-gutters .cm-gutter-lint { display: none !important; }
@@ -64,18 +62,12 @@ const browser = await chromium.launch(
   process.env.LENSE_CHROME ? { executablePath: process.env.LENSE_CHROME } : { channel: 'chrome' });
 try {
   const page = await browser.newPage({
-    viewport: { width: 600, height: 315 }, deviceScaleFactor: 2, colorScheme: 'dark',
+    viewport: { width: 600, height: 315 }, deviceScaleFactor: 3, colorScheme: 'dark',
   });
   page.on('pageerror', (e) => console.error(e.message));
   await page.goto(`${server.resolvedUrls.local[0]}#${hash}`);
   await page.locator('#output .card').first().waitFor({ timeout: 60_000 });
   await page.addStyleTag({ content: css });
-  await page.evaluate(() => {
-    const t = document.createElement('span');
-    t.className = 'tagline';
-    t.textContent = 'C and C++ record layouts, computed by clang';
-    document.querySelector('.bar').append(t);
-  });
   await page.evaluate(() => document.fonts.ready);
   // Let CodeMirror remeasure after the layout change.
   await page.waitForTimeout(400);
