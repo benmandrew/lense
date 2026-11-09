@@ -1,12 +1,13 @@
 #include "Text.h"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringSet.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
-#include <map>
-#include <set>
 #include <string>
 
 namespace lense {
@@ -14,18 +15,7 @@ namespace {
 
 using Color = llvm::raw_ostream::Colors;
 
-std::string fmtOffset(uint64_t bits) {
-  std::string s = std::to_string(bits / 8);
-  if (bits % 8)
-    s += ":" + std::to_string(bits % 8);
-  return s;
-}
-
-std::string fmtSize(uint64_t bits, bool inBits) {
-  if (!inBits && bits % 8 == 0)
-    return std::to_string(bits / 8);
-  return std::to_string(bits) + "b";
-}
+constexpr Color Dim = Color::BRIGHT_BLACK;
 
 std::string fmtAmount(uint64_t bits) {
   if (bits % 8 == 0)
@@ -33,45 +23,87 @@ std::string fmtAmount(uint64_t bits) {
   return std::to_string(bits) + " bits";
 }
 
-std::string fmtAlign(const Node &n) {
-  if (!n.alignBits || n.kind == NodeKind::BitField ||
-      n.kind == NodeKind::Padding)
-    return "";
-  return std::to_string(n.alignBits / 8);
+// The alignment shown for a member, in bits; 0 leaves the column blank.
+uint64_t shownAlign(const Node &n) {
+  return n.kind == NodeKind::BitField || n.kind == NodeKind::Padding
+             ? 0
+             : n.alignBits;
 }
 
-std::string fmtSizeOf(const Node &n) {
-  bool inBits = n.kind == NodeKind::BitField ||
-                (n.kind == NodeKind::Padding &&
-                 (n.offsetBits % 8 || n.sizeBits % 8));
-  return fmtSize(n.sizeBits, inBits);
+// The offset, size and align columns of one row. An offset that is not
+// whole bytes is "byte:bit". Sizes of bitfields, and of padding or members
+// that are not whole bytes, are in bits with a "b" suffix.
+struct Cells {
+  std::string offset, size, align;
+};
+
+Cells cells(const Node &n) {
+  Cells c;
+  c.offset = std::to_string(n.offsetBits / 8);
+  if (n.offsetBits % 8)
+    c.offset += ":" + std::to_string(n.offsetBits % 8);
+  bool inBits = n.kind == NodeKind::BitField || n.sizeBits % 8 ||
+                (n.kind == NodeKind::Padding && n.offsetBits % 8);
+  c.size = inBits ? std::to_string(n.sizeBits) + "b"
+                  : std::to_string(n.sizeBits / 8);
+  if (uint64_t a = shownAlign(n))
+    c.align = std::to_string(a / 8);
+  return c;
 }
+
+// Column widths, wide enough for the headings and every row.
+struct Columns {
+  size_t offset = 6, size = 4, align = 5;
+
+  void fit(const Cells &c) {
+    offset = std::max(offset, c.offset.size());
+    size = std::max(size, c.size.size());
+    align = std::max(align, c.align.size());
+  }
+  size_t width() const { return offset + size + align + 4; }
+  void print(llvm::raw_ostream &os, llvm::StringRef o, llvm::StringRef s,
+             llvm::StringRef a) const {
+    os << llvm::right_justify(o, offset) << "  "
+       << llvm::right_justify(s, size) << "  "
+       << llvm::right_justify(a, align);
+  }
+  void print(llvm::raw_ostream &os, const Cells &c) const {
+    print(os, c.offset, c.size, c.align);
+  }
+};
 
 struct Line {
-  std::string offset;
-  std::string size;
-  std::string align;
+  Cells cells;
   unsigned depth;
   const Node *node;
 };
 
 void collect(const Node &n, unsigned depth, std::vector<Line> &out) {
-  out.push_back(
-      {fmtOffset(n.offsetBits), fmtSizeOf(n), fmtAlign(n), depth, &n});
+  out.push_back({cells(n), depth, &n});
   if (n.kind == NodeKind::Record)
     for (const Node &c : n.children)
       collect(c, depth + 1, out);
 }
 
-std::string pad(const std::string &s, size_t w) {
-  return std::string(w > s.size() ? w - s.size() : 0, ' ') + s;
-}
-
-class Printer {
-public:
+struct Printer {
   Printer(llvm::raw_ostream &os, const Report &report)
       : os(os), ms(report.abi == "microsoft"), bigEndian(report.bigEndian),
         cacheLine(report.cacheLine) {}
+
+  llvm::raw_ostream &os;
+  bool ms;
+  bool bigEndian;
+  unsigned cacheLine;
+
+  void color(Color c, bool b = false) { os.changeColor(c, b); }
+  void bold() { os.changeColor(Color::SAVEDCOLOR, true); }
+  void dim() { os.changeColor(Dim); }
+  void reset() { os.resetColor(); }
+  void paint(Color c, llvm::StringRef s, bool b = false) {
+    color(c, b);
+    os << s;
+    reset();
+  }
 
   void record(const Record &r) {
     source(r);
@@ -81,15 +113,13 @@ public:
     std::vector<Line> lines;
     for (const Node &c : r.layout.children)
       collect(c, 0, lines);
-    size_t offW = 6, sizeW = 4, alignW = 5;
-    for (const Line &l : lines) {
-      offW = std::max(offW, l.offset.size());
-      sizeW = std::max(sizeW, l.size.size());
-      alignW = std::max(alignW, l.align.size());
-    }
+    Columns cols;
+    for (const Line &l : lines)
+      cols.fit(l.cells);
     dim();
-    os << "  " << pad("offset", offW) << "  " << pad("size", sizeW) << "  "
-       << pad("align", alignW) << '\n';
+    os << "  ";
+    cols.print(os, "offset", "size", "align");
+    os << '\n';
     reset();
     // Rows come in tree order, which is offset order except for members
     // that overlap others, so mark each boundary before the first row
@@ -100,35 +130,41 @@ public:
         while (l.node->offsetBits >= next + line)
           next += line;
         dim();
-        os << "  " << std::string(offW + sizeW + alignW + 6, ' ')
-           << "--- cache line " << next / line << " (byte " << next / 8
-           << ") ---\n";
+        os.indent(cols.width() + 4)
+            << "--- cache line " << next / line << " (byte " << next / 8
+            << ") ---\n";
         reset();
         next += line;
       }
-      os << "  " << pad(l.offset, offW) << "  " << pad(l.size, sizeW) << "  "
-         << pad(l.align, alignW) << "  " << std::string(2 * l.depth, ' ');
+      os << "  ";
+      cols.print(os, l.cells);
+      os.indent(2 + 2 * l.depth);
       describe(*l.node);
       notes(*l.node);
       os << '\n';
     }
-    if (lines.empty()) {
-      dim();
-      os << "  (no members)\n";
-      reset();
-    }
+    if (lines.empty())
+      paint(Dim, "  (no members)\n");
     reorder(r);
+  }
+
+  void title(const Record &r) {
+    bold();
+    os << r.tag << ' ' << r.name;
+    reset();
+  }
+
+  void sizeAlign(const Record &r) {
+    os << "  size " << r.size << ", align " << r.align;
+    if (!r.alignText.empty())
+      os << " from " << r.alignText;
   }
 
   // "struct S  size 16, align 8 from d, padding 7 bytes"
   void header(const Record &r) {
-    bold();
-    os << r.tag << ' ' << r.name;
-    reset();
+    title(r);
     dim();
-    os << "  size " << r.size << ", align " << r.align;
-    if (!r.alignText.empty())
-      os << " from " << r.alignText;
+    sizeAlign(r);
     if (r.dataSize != r.size)
       os << ", data size " << r.dataSize;
     if (r.nvSize != r.size && r.nvSize != r.dataSize)
@@ -159,8 +195,9 @@ public:
     if (!r.reorder)
       return;
     color(Color::GREEN);
-    os << "  reordering the fields saves " << fmtAmount((r.size - r.reorder->size) * 8)
-       << " (size " << r.reorder->size << "):";
+    os << "  reordering the fields saves "
+       << fmtAmount((r.size - r.reorder->size) * 8) << " (size "
+       << r.reorder->size << "):";
     for (size_t i = 0; i < r.reorder->fields.size(); ++i)
       os << (i ? ", " : " ")
          << (r.reorder->fields[i].empty() ? "(unnamed)" : r.reorder->fields[i]);
@@ -174,22 +211,11 @@ public:
       os << "  location " << n.location;
       reset();
     }
-    if (n.unaligned) {
-      color(Color::RED);
-      os << "  (unaligned)";
-      reset();
-    }
-    if (n.crossesCacheLine) {
-      color(Color::YELLOW);
-      os << "  (crosses cache line)";
-      reset();
-    }
+    if (n.unaligned)
+      paint(Color::RED, "  (unaligned)");
+    if (n.crossesCacheLine)
+      paint(Color::YELLOW, "  (crosses cache line)");
   }
-
-  llvm::raw_ostream &os;
-  bool ms;
-  bool bigEndian;
-  unsigned cacheLine;
 
   // The definition with line numbers, e.g. "   3 | struct S {".
   void source(const Record &r) {
@@ -197,13 +223,12 @@ public:
       return;
     llvm::SmallVector<llvm::StringRef, 16> lines;
     llvm::StringRef(r.source).rtrim('\n').split(lines, '\n');
-    std::string last = std::to_string(r.sourceLine + lines.size() - 1);
-    size_t width = std::max<size_t>(4, last.size());
+    unsigned width = std::max<size_t>(
+        4, std::to_string(r.sourceLine + lines.size() - 1).size());
     size_t at = 0;
     for (size_t i = 0; i < lines.size(); ++i) {
-      std::string n = std::to_string(r.sourceLine + i);
       dim();
-      os << std::string(width - n.size(), ' ') << n << " |";
+      os << llvm::format_decimal(r.sourceLine + i, width) << " |";
       reset();
       if (!lines[i].empty()) {
         os << ' ';
@@ -224,36 +249,24 @@ public:
       size_t b = std::max<size_t>(s.begin, at) - at;
       size_t e = std::min<size_t>(s.end, at + line.size()) - at;
       os << line.slice(pos, b);
-      switch (s.style) {
-      case SourceStyle::Keyword: color(Color::BLUE); break;
-      case SourceStyle::Literal: color(Color::GREEN); break;
-      case SourceStyle::Comment: dim(); break;
-      }
-      os << line.slice(b, e);
-      reset();
+      Color c = s.style == SourceStyle::Keyword   ? Color::BLUE
+                : s.style == SourceStyle::Literal ? Color::GREEN
+                                                  : Dim;
+      paint(c, line.slice(b, e));
       pos = e;
     }
     os << line.drop_front(pos);
   }
 
-  void color(Color c, bool b = false) { os.changeColor(c, b); }
-  void bold() { os.changeColor(Color::SAVEDCOLOR, true); }
-  void dim() { os.changeColor(Color::BRIGHT_BLACK); }
-  void reset() { os.resetColor(); }
-
   void describe(const Node &n) {
     switch (n.kind) {
     case NodeKind::Record:
       if (n.role == Role::Field) {
-        color(Color::CYAN);
-        os << n.type;
-        reset();
+        paint(Color::CYAN, n.type);
         if (!n.name.empty())
           os << ' ' << n.name;
       } else {
-        bold();
-        os << n.type;
-        reset();
+        paint(Color::SAVEDCOLOR, n.type, true);
         dim();
         switch (n.role) {
         case Role::PrimaryBase: os << "  primary base"; break;
@@ -264,49 +277,31 @@ public:
         }
         reset();
       }
-      if (n.empty) {
-        dim();
-        os << " (empty)";
-        reset();
-      }
+      if (n.empty)
+        paint(Dim, " (empty)");
       break;
     case NodeKind::Field:
     case NodeKind::BitField:
-      color(Color::CYAN);
-      os << n.type;
-      reset();
+      paint(Color::CYAN, n.type);
       os << ' ' << (n.name.empty() ? "(unnamed)" : n.name);
       if (n.kind == NodeKind::BitField)
         os << " : " << n.sizeBits;
       break;
     case NodeKind::VPtr:
-      color(Color::MAGENTA, true);
-      os << (ms ? "vfptr" : "vptr");
-      reset();
-      dim();
-      os << "  " << n.type;
-      reset();
-      break;
     case NodeKind::VBPtr:
-      color(Color::MAGENTA, true);
-      os << "vbptr";
-      reset();
-      dim();
-      os << "  " << n.type;
-      reset();
-      break;
     case NodeKind::VtorDisp:
-      color(Color::MAGENTA, true);
-      os << "vtordisp";
-      reset();
+      paint(Color::MAGENTA,
+            n.kind == NodeKind::VBPtr      ? "vbptr"
+            : n.kind == NodeKind::VtorDisp ? "vtordisp"
+            : ms                           ? "vfptr"
+                                           : "vptr",
+            true);
       dim();
-      os << "  for " << n.type;
+      os << (n.kind == NodeKind::VtorDisp ? "  for " : "  ") << n.type;
       reset();
       break;
     case NodeKind::Padding:
-      color(Color::RED);
-      os << "padding";
-      reset();
+      paint(Color::RED, "padding");
       break;
     }
   }
@@ -325,7 +320,7 @@ struct Pair {
 // by the member it follows, so a hole that moves shows as two rows.
 std::vector<std::string> keys(const Node &parent) {
   std::vector<std::string> out;
-  std::map<std::string, unsigned> seen;
+  llvm::StringMap<unsigned> seen;
   std::string prev = "start";
   for (const Node &c : parent.children) {
     std::string k;
@@ -353,15 +348,15 @@ void side(const Node &n, unsigned depth, bool isA, std::vector<Pair> &out) {
 void merge(const Node &a, const Node &b, unsigned depth,
            std::vector<Pair> &out) {
   std::vector<std::string> ka = keys(a), kb = keys(b);
-  std::map<std::string, size_t> inB;
+  llvm::StringMap<size_t> inB;
   for (size_t j = 0; j < kb.size(); ++j)
     inB[kb[j]] = j;
   std::vector<bool> used(kb.size());
-  std::set<std::string> inA(ka.begin(), ka.end());
+  llvm::StringSet<> inA(llvm::from_range, ka);
   size_t next = 0;
   auto onlyB = [&](size_t upTo) {
     for (; next < upTo; ++next)
-      if (!used[next] && !inA.count(kb[next])) {
+      if (!used[next] && !inA.contains(kb[next])) {
         used[next] = true;
         side(b.children[next], depth, false, out);
       }
@@ -387,7 +382,7 @@ void merge(const Node &a, const Node &b, unsigned depth,
 
 bool sameRow(const Pair &p) {
   return p.a && p.b && p.a->offsetBits == p.b->offsetBits &&
-         p.a->sizeBits == p.b->sizeBits && fmtAlign(*p.a) == fmtAlign(*p.b);
+         p.a->sizeBits == p.b->sizeBits && shownAlign(*p.a) == shownAlign(*p.b);
 }
 
 void compareRecord(Printer &pa, Printer &pb, const Record &a, const Record &b,
@@ -396,11 +391,9 @@ void compareRecord(Printer &pa, Printer &pb, const Record &a, const Record &b,
   std::vector<Pair> rows;
   merge(a.layout, b.layout, 0, rows);
   bool same = a.size == b.size && a.align == b.align &&
-              std::all_of(rows.begin(), rows.end(), sameRow);
+              llvm::all_of(rows, sameRow);
 
-  pa.bold();
-  os << a.tag << ' ' << a.name;
-  pa.reset();
+  pa.title(a);
   pa.dim();
   if (same) {
     os << "  same on both targets: size " << a.size << ", align " << a.align
@@ -411,60 +404,50 @@ void compareRecord(Printer &pa, Printer &pb, const Record &a, const Record &b,
   pa.reset();
   os << '\n';
   size_t tw = std::max(ta.size(), tb.size());
-  auto summary = [&](Printer &p, const Record &r, const std::string &t) {
-    os << "  " << t << std::string(tw - t.size(), ' ');
-    p.dim();
-    os << "  size " << r.size << ", align " << r.align;
-    if (!r.alignText.empty())
-      os << " from " << r.alignText;
-    if (r.paddingBits)
-      os << ", padding " << fmtAmount(r.paddingBits);
-    p.reset();
+  for (auto [r, t] : {std::pair(&a, &ta), std::pair(&b, &tb)}) {
+    os << "  " << llvm::left_justify(*t, tw);
+    pa.dim();
+    pa.sizeAlign(*r);
+    if (r->paddingBits)
+      os << ", padding " << fmtAmount(r->paddingBits);
+    pa.reset();
     os << '\n';
-  };
-  summary(pa, a, ta);
-  summary(pb, b, tb);
+  }
 
-  struct Cells {
-    std::string offset, size, align;
-  };
-  auto cells = [](const Node *n) {
-    return n ? Cells{fmtOffset(n->offsetBits), fmtSizeOf(*n), fmtAlign(*n)}
-             : Cells{};
-  };
-  size_t offW = 6, sizeW = 4, alignW = 5;
+  Columns cols;
+  std::vector<Cells> cs; // Two per row, blank for a missing side.
+  cs.reserve(2 * rows.size());
   for (const Pair &p : rows)
     for (const Node *n : {p.a, p.b}) {
-      Cells c = cells(n);
-      offW = std::max(offW, c.offset.size());
-      sizeW = std::max(sizeW, c.size.size());
-      alignW = std::max(alignW, c.align.size());
+      cs.push_back(n ? cells(*n) : Cells());
+      cols.fit(cs.back());
     }
-  size_t group = offW + sizeW + alignW + 4;
-  size_t gw = std::max(group, tw);
+  size_t group = cols.width();
+  size_t lead = std::max(group, tw) - group;
   pa.dim();
-  os << "  " << std::string(gw - group, ' ') << pad(ta, group) << "  "
-     << std::string(gw - group, ' ') << pad(tb, group) << '\n';
   os << "  ";
-  for (int k = 0; k < 2; ++k)
-    os << (k ? "  " : "") << std::string(gw - group, ' ')
-       << pad("offset", offW) << "  " << pad("size", sizeW) << "  "
-       << pad("align", alignW);
+  os.indent(lead) << llvm::right_justify(ta, group) << "  ";
+  os.indent(lead) << llvm::right_justify(tb, group) << '\n';
+  for (int k = 0; k < 2; ++k) {
+    os.indent(2 + lead);
+    cols.print(os, "offset", "size", "align");
+  }
   os << '\n';
   pa.reset();
-  for (const Pair &p : rows) {
+  for (size_t i = 0; i < rows.size(); ++i) {
+    const Pair &p = rows[i];
     bool changed = !sameRow(p);
     if (changed)
       pa.color(Color::YELLOW, true);
     os << (changed ? "* " : "  ");
-    for (const Node *n : {p.a, p.b}) {
-      Cells c = cells(n);
-      os << std::string(gw - group, ' ') << pad(c.offset, offW) << "  "
-         << pad(c.size, sizeW) << "  " << pad(c.align, alignW) << "  ";
+    for (size_t k = 2 * i; k < 2 * i + 2; ++k) {
+      os.indent(lead);
+      cols.print(os, cs[k]);
+      os << "  ";
     }
     if (changed)
       pa.reset();
-    os << std::string(2 * p.depth, ' ');
+    os.indent(2 * p.depth);
     if (p.a)
       pa.describe(*p.a);
     else
@@ -477,40 +460,37 @@ void compareRecord(Printer &pa, Printer &pb, const Record &a, const Record &b,
 
 void printTextCompare(llvm::raw_ostream &os, const Report &a, const Report &b) {
   Printer pa(os, a), pb(os, b);
-  std::map<std::string, const Record *> inB;
+  llvm::StringMap<const Record *> inB;
   for (const Record &r : b.records)
     inB[r.name] = &r;
-  std::set<std::string> inA;
+  llvm::StringSet<> inA;
   bool first = true;
   auto gap = [&] {
     if (!first)
       os << '\n';
     first = false;
   };
-  auto only = [&](Printer &p, const Record &r, const std::string &t) {
+  auto only = [&](const Record &r, const std::string &t) {
     gap();
-    p.bold();
-    os << r.tag << ' ' << r.name;
-    p.reset();
-    p.dim();
+    pa.title(r);
+    pa.dim();
     os << "  only on " << t << '\n';
-    p.reset();
+    pa.reset();
   };
   for (const Record &r : a.records) {
     inA.insert(r.name);
     auto it = inB.find(r.name);
     if (it == inB.end()) {
-      only(pa, r, a.target);
+      only(r, a.target);
       continue;
     }
     gap();
-    if (!r.source.empty())
-      pa.source(r);
+    pa.source(r);
     compareRecord(pa, pb, r, *it->second, a.target, b.target);
   }
   for (const Record &r : b.records)
-    if (!inA.count(r.name))
-      only(pb, r, b.target);
+    if (!inA.contains(r.name))
+      only(r, b.target);
 }
 
 void printText(llvm::raw_ostream &os, const Report &report) {

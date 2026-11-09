@@ -9,24 +9,17 @@
 
 #include <emscripten/emscripten.h>
 
-#include <cstdlib>
-#include <cstring>
+#include <string.h>
 
 namespace json = llvm::json;
 
 namespace {
 
-char *copy(const std::string &s) {
-  char *p = static_cast<char *>(std::malloc(s.size() + 1));
-  std::memcpy(p, s.c_str(), s.size() + 1);
-  return p;
-}
-
 char *error(const std::string &message) {
   std::string s;
   llvm::raw_string_ostream os(s);
   os << json::Value(json::Object{{"error", message}});
-  return copy(s);
+  return strdup(s.c_str());
 }
 
 } // namespace
@@ -86,5 +79,5 @@ extern "C" EMSCRIPTEN_KEEPALIVE char *lense_analyze(const char *code,
     lense::printJson(os, other);
   }
   os << "}";
-  return copy(s);
+  return strdup(s.c_str());
 }

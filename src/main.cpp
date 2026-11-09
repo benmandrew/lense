@@ -10,7 +10,7 @@
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <cstring>
+#include <algorithm>
 
 namespace cl = llvm::cl;
 
@@ -51,15 +51,10 @@ static cl::opt<std::string>
 
 int main(int argc, char **argv) {
   // Everything after "--" goes to clang untouched.
-  std::vector<std::string> clangArgs;
-  int ownArgc = argc;
-  for (int i = 1; i < argc; ++i) {
-    if (std::strcmp(argv[i], "--") == 0) {
-      ownArgc = i;
-      clangArgs.assign(argv + i + 1, argv + argc);
-      break;
-    }
-  }
+  char **dashes = std::find_if(argv + 1, argv + argc, [](const char *a) {
+    return llvm::StringRef(a) == "--";
+  });
+  int ownArgc = dashes - argv;
   // LLVM supplies --color (auto-detected when absent).
   cl::HideUnrelatedOptions({&category, &llvm::getColorCategory()});
   cl::SetVersionPrinter(
@@ -81,13 +76,11 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  std::string fileName;
-  if (input == "-") {
-    fileName = lang == "c" ? "stdin.c" : "stdin.cpp";
-  } else {
+  std::string fileName = lang == "c" ? "stdin.c" : "stdin.cpp";
+  if (input != "-") {
     llvm::SmallString<256> abs(input.getValue());
     llvm::sys::fs::make_absolute(abs);
-    fileName = abs.str().str();
+    fileName = std::string(abs);
   }
 
   if (cacheLine & (cacheLine - 1)) {
@@ -102,8 +95,8 @@ int main(int argc, char **argv) {
   opts.analyze.records.assign(records.begin(), records.end());
   if (!target.empty())
     opts.clangArgs.push_back("--target=" + target);
-  opts.clangArgs.insert(opts.clangArgs.end(), clangArgs.begin(),
-                        clangArgs.end());
+  if (dashes != argv + argc)
+    opts.clangArgs.insert(opts.clangArgs.end(), dashes + 1, argv + argc);
   opts.colorDiagnostics = llvm::sys::Process::StandardErrHasColors();
 
   lense::Report report;
