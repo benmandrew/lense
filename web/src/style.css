@@ -109,6 +109,8 @@
   --syn-function: #f1eee7;
   --syn-variable: #c9b8a0;
   --syn-operator: #a3a09a;
+  /* The rule drawn at the indent of a union, left of its members' rows. */
+  --union-rule: linear-gradient(var(--ink-2), var(--ink-2));
 }
 
 * { box-sizing: border-box; }
@@ -138,7 +140,7 @@ body {
 
 .bar h1 { margin: 0 8px 0 0; color: var(--ink); font: 600 16px var(--mono); letter-spacing: 0.02em; }
 
-.bar label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.bar label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 
 .bar select, .bar input:not([type="checkbox"]) {
   font: inherit;
@@ -149,14 +151,12 @@ body {
   padding: 3px 6px;
 }
 
-.bar label:has(input:disabled) { color: var(--muted); }
 .bar .grow { flex: 1 1 180px; }
 .bar .grow input { flex: 1; min-width: 0; font-family: var(--mono); }
 
 #status {
   margin-left: auto;
   font-size: 12px;
-  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -181,8 +181,7 @@ main {
   #output { overflow: visible; }
 }
 
-.meta { margin: 0 0 12px; font-size: 12px; color: var(--ink-2); }
-.empty { color: var(--ink-2); }
+.meta { margin: 0 0 12px; font-size: 12px; }
 .failure {
   margin: 0 0 12px;
   padding: 8px 12px;
@@ -190,7 +189,7 @@ main {
   background: var(--surface);
 }
 
-.stderr summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+.stderr summary { cursor: pointer; font-size: 13px; }
 .stderr pre {
   margin: 8px 0 0;
   padding: 12px;
@@ -223,8 +222,8 @@ main {
   text-align: left;
 }
 .card h2 .name:hover { text-decoration: underline; }
-.summary { margin: 2px 0 12px; color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
-.summary .src { font: 12.5px var(--mono); color: var(--ink); }
+.summary { margin: 2px 0 12px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.summary .src, .reorder code { font: 12.5px var(--mono); color: var(--ink); }
 
 .traits {
   display: flex;
@@ -232,7 +231,6 @@ main {
   gap: 2px 16px;
   margin: -8px 0 12px;
   font-size: 12px;
-  color: var(--ink-2);
 }
 .traits code { font: 11.5px var(--mono); }
 .traits .no { color: var(--muted); }
@@ -242,12 +240,10 @@ main {
   padding: 4px 12px;
   border-left: 3px solid var(--good);
   font-size: 13px;
-  color: var(--ink-2);
 }
 .reorder .saves { color: var(--good-ink); font-weight: 600; }
-.reorder code { font: 12.5px var(--mono); color: var(--ink); }
 
-.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 8px; font-size: 12px; color: var(--ink-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 8px; font-size: 12px; }
 .legend > span { display: inline-flex; align-items: center; }
 
 .sw {
@@ -281,7 +277,7 @@ td .sw:not([class*="cat-"]) { visibility: hidden; }
 }
 .bytemap .marks { display: grid; grid-template-columns: repeat(var(--bytes), minmax(0, 1fr)); color: var(--muted); }
 .bytemap .marks span { padding-left: 3px; }
-.bytemap .gap .fold { padding: 2px 4px; color: var(--ink-2); }
+.bytemap .gap .fold { padding: 2px 4px; }
 .bytemap .row.cacheline { padding-top: 2px; border-top: 1px dashed var(--axis); }
 
 .bytemap .lanes {
@@ -326,7 +322,6 @@ td .sw:not([class*="cat-"]) { visibility: hidden; }
   min-width: 0;
   padding: 0 6px;
   overflow: hidden;
-  color: var(--ink-2);
   font-size: 10px;
   line-height: 16px;
   white-space: nowrap;
@@ -339,12 +334,8 @@ table { border-collapse: collapse; font: 12.5px/1.6 var(--mono); }
 .members { width: 100%; }
 th { font-weight: 400; color: var(--muted); text-align: left; }
 th.num, td.num { width: 1%; text-align: right; padding-right: 1.5em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-td.num { color: var(--ink-2); }
 td.desc { white-space: pre-wrap; }
-.members tr.hl td { background-color: var(--hl-bg); }
-.members tbody tr:hover td { background-color: var(--hl-bg); }
-/* Rows inside a union get a rule at the union's indent. */
-:root { --union-rule: linear-gradient(var(--ink-2), var(--ink-2)); }
+.members tr.hl td, .members tbody tr:hover td { background-color: var(--hl-bg); }
 td.desc.in-union { background-repeat: no-repeat; background-size: 2px 100%; }
 .members tr.cacheline td {
   padding-top: 1px;
@@ -356,10 +347,8 @@ td.desc.in-union { background-repeat: no-repeat; background-size: 2px 100%; }
 .members tbody tr.cacheline:hover td { background-color: transparent; }
 
 .type { color: var(--syn-type); }
-.base { font-weight: 600; }
-.dim { color: var(--ink-2); }
-.ptr { font-weight: 600; }
-.pad { color: var(--ink-2); font-style: italic; }
+.base, .ptr { font-weight: 600; }
+.pad { font-style: italic; }
 
 .chip {
   display: inline-block;
@@ -367,13 +356,11 @@ td.desc.in-union { background-repeat: no-repeat; background-size: 2px 100%; }
   padding: 0 5px;
   border: 1px solid var(--border);
   border-radius: 4px;
-  color: var(--ink-2);
   font-size: 11px;
   line-height: 1.5;
 }
 .chip.bad { color: var(--critical); border-color: currentColor; }
 .chip.warn {
-  color: var(--ink-2);
   border-color: var(--warning);
   background: color-mix(in srgb, var(--warning) 14%, transparent);
 }
@@ -388,17 +375,13 @@ td.desc.in-union { background-repeat: no-repeat; background-size: 2px 100%; }
 }
 .sides .target { font: 12.5px/1.6 var(--mono); }
 .sides .summary { margin: 0; }
-.maplabel { margin: 0 0 4px; font: 11px var(--mono); color: var(--ink-2); }
+.maplabel { margin: 0 0 4px; font: 11px var(--mono); }
 
 .compare th.group { text-align: right; padding-right: 1.5em; color: var(--ink-2); white-space: nowrap; }
 .compare th.group + th.group, .compare .split { border-left: 1px solid var(--grid); padding-left: 1em; }
 .compare .mark { width: 1%; padding-right: 0.5em; text-align: center; }
-.compare tr.changed td.mark { color: var(--ink); font-weight: 600; }
-.compare tr.changed td.diff {
-  color: var(--ink);
-  font-weight: 600;
-  background: color-mix(in srgb, var(--warning) 18%, transparent);
-}
+.compare tr.changed td.mark, .compare tr.changed td.diff { color: var(--ink); font-weight: 600; }
+.compare tr.changed td.diff { background: color-mix(in srgb, var(--warning) 18%, transparent); }
 
 #tip {
   position: fixed;

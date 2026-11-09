@@ -3,9 +3,8 @@
 // side by side instead, as lense --compare does.
 import { bits, type LayoutNode, type LayoutRecord, type Report } from './types';
 
-export interface Hooks {
-  locate(line: number, column: number): void;
-}
+/** Moves the editor cursor to a record's declaration. */
+export type Locate = (line: number, column: number) => void;
 
 type Category = 'field' | 'base' | 'ptr' | 'pad';
 const CATEGORIES: [Category, string][] = [
@@ -24,7 +23,7 @@ interface Leaf {
   end: number;
 }
 
-function el<K extends keyof HTMLElementTagNameMap>(
+export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K, cls?: string, text?: string,
 ): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -39,17 +38,22 @@ function span(parent: HTMLElement, cls: string, text: string): HTMLSpanElement {
   return s;
 }
 
+const swatch = (cat?: Category) => el('span', cat ? `sw cat-${cat}` : 'sw');
+/** The path of child i under prefix, as data-path holds it. */
+const child = (prefix: string, i: number) => (prefix ? `${prefix}.${i}` : `${i}`);
+const isMs = (report: Report) => report.abi === 'microsoft';
+
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const fmtOffset = (b: number) => (b % 8 ? `${Math.floor(b / 8)}:${b % 8}` : `${b / 8}`);
-const fmtSize = (b: number, inBits: boolean) => (!inBits && b % 8 === 0 ? `${b / 8}` : `${b}b`);
 const fmtAmount = (b: number) => (b % 8 === 0 ? plural(b / 8, 'byte') : `${b} bits`);
 
 /** Sizes of bitfields, and of padding that is not whole bytes, are in bits. */
-function fmtSizeOf(n: LayoutNode): string {
+function fmtSize(n: LayoutNode): string {
   const [start, end] = bits(n);
+  const size = end - start;
   const inBits = n.kind === 'bitfield' ||
     (n.kind === 'padding' && (start % 8 !== 0 || end % 8 !== 0));
-  return fmtSize(end - start, inBits);
+  return !inBits && size % 8 === 0 ? `${size / 8}` : `${size}b`;
 }
 
 const fmtAlign = (n: LayoutNode) =>
@@ -66,9 +70,9 @@ function category(n: LayoutNode, inBase: boolean): Category {
 }
 
 /** The nodes that occupy storage, in order, with their position in the tree. */
-function leaves(nodes: LayoutNode[], prefix: string, inBase: boolean, out: Leaf[]): Leaf[] {
+function leaves(nodes: LayoutNode[], prefix: string, inBase = false, out: Leaf[] = []): Leaf[] {
   nodes.forEach((n, i) => {
-    const path = prefix ? `${prefix}.${i}` : `${i}`;
+    const path = child(prefix, i);
     const base = inBase || BASE_ROLES.has(n.role ?? '');
     const [start, end] = bits(n);
     if (n.kind === 'record' && n.members?.length) leaves(n.members, path, base, out);
@@ -76,6 +80,8 @@ function leaves(nodes: LayoutNode[], prefix: string, inBase: boolean, out: Leaf[
   });
   return out;
 }
+
+const categories = (all: Leaf[]) => new Map(all.map((l) => [l.path, l.cat]));
 
 function label(n: LayoutNode, ms: boolean): string {
   switch (n.kind) {
@@ -107,16 +113,10 @@ function describe(parent: HTMLElement, n: LayoutNode, ms: boolean) {
       if (n.kind === 'bitfield') parent.append(` : ${n.bit_size}`);
       break;
     case 'vptr':
-      span(parent, 'ptr', ms ? 'vfptr' : 'vptr');
-      span(parent, 'dim', `  ${n.type ?? ''}`);
-      break;
     case 'vbptr':
-      span(parent, 'ptr', 'vbptr');
-      span(parent, 'dim', `  ${n.type ?? ''}`);
-      break;
     case 'vtordisp':
-      span(parent, 'ptr', 'vtordisp');
-      span(parent, 'dim', `  for ${n.type ?? ''}`);
+      span(parent, 'ptr', label(n, ms));
+      span(parent, 'dim', `  ${n.kind === 'vtordisp' ? 'for ' : ''}${n.type ?? ''}`);
       break;
     case 'padding':
       span(parent, 'pad', 'padding');
@@ -140,6 +140,15 @@ function notes(parent: HTMLElement, n: LayoutNode) {
   }
 }
 
+/** The member cell of a table row, indented by indent em. */
+function descCell(n: LayoutNode, ms: boolean, indent: number, cat?: Category): HTMLElement {
+  const td = el('td', 'desc');
+  td.style.paddingLeft = `${indent}em`;
+  td.append(swatch(cat));
+  describe(td, n, ms);
+  return td;
+}
+
 function tip(n: LayoutNode, ms: boolean): string {
   const s = el('span');
   describe(s, n, ms);
@@ -157,7 +166,8 @@ function tip(n: LayoutNode, ms: boolean): string {
 
 // --- Byte map -------------------------------------------------------------
 
-interface Piece { leaf: Leaf; s: number; e: number }
+/** The part of a leaf in one row, in bits from the row start, and its lane. */
+interface Piece { leaf: Leaf; s: number; e: number; lane: number }
 
 /** A union in the tree: the record itself, or a union member at any depth. */
 interface Union { path: string; name: string; start: number; end: number }
@@ -166,7 +176,7 @@ function unions(r: LayoutRecord): Union[] {
   const out: Union[] = [];
   if (r.tag === 'union') out.push({ path: '', name: `union ${r.name}`, start: 0, end: r.size * 8 });
   const walk = (nodes: LayoutNode[], prefix: string) => nodes.forEach((n, i) => {
-    const path = prefix ? `${prefix}.${i}` : `${i}`;
+    const path = child(prefix, i);
     if (n.kind !== 'record') return;
     if (n.tag === 'union') {
       const [start, end] = bits(n);
@@ -190,11 +200,10 @@ function byteMap(r: LayoutRecord, all: Leaf[], ms: boolean, cacheLine = 0): HTML
   map.style.setProperty('--bits', String(rowBits));
   map.style.setProperty('--bytes', String(bytes));
 
-  const ruler = el('div', 'row ruler');
-  ruler.append(el('span', 'off'));
   const marks = el('div', 'marks');
   for (let b = 0; b < bytes; b++) marks.append(el('span', '', `+${b}`));
-  ruler.append(marks);
+  const ruler = el('div', 'row ruler');
+  ruler.append(el('span', 'off'), marks);
   map.append(ruler);
 
   // Rows wholly inside one long member are folded, so a large array costs a
@@ -204,36 +213,30 @@ function byteMap(r: LayoutRecord, all: Leaf[], ms: boolean, cacheLine = 0): HTML
     const a = Math.floor(l.start / rowBits), b = Math.floor((l.end - 1) / rowBits);
     for (const row of [a, a + 1, b - 1, b]) if (row >= a && row <= b) shown.add(row);
   }
-  const order = [...shown].sort((x, y) => x - y);
 
   let prev = -1;
-  for (const row of order) {
+  for (const row of [...shown].sort((x, y) => x - y)) {
     if (row > prev + 1) {
-      const skipped = row - prev - 1;
       const over = all.find((l) => l.start <= (prev + 1) * rowBits && l.end >= row * rowBits);
       const gap = el('div', 'row gap');
-      gap.append(el('span', 'off'));
-      gap.append(el('span', 'fold',
-        `⋯ ${plural(skipped, 'row')} of ${over ? label(over.node, ms) || 'padding' : 'data'}`));
+      gap.append(el('span', 'off'), el('span', 'fold',
+        `⋯ ${plural(row - prev - 1, 'row')} of ${over ? label(over.node, ms) || 'padding' : 'data'}`));
       map.append(gap);
     }
     prev = row;
     const lo = row * rowBits, hi = lo + rowBits;
-    const pieces: Piece[] = all
-      .filter((l) => l.start < hi && l.end > lo)
-      .map((l) => ({ leaf: l, s: Math.max(l.start, lo) - lo, e: Math.min(l.end, hi) - lo }));
 
     // Overlapping members (unions) go on separate lanes, and each union gets
     // an outline around its lanes. The row where a union starts has an extra
     // lane on top for its label.
     const laneEnds: number[] = [];
-    const laneOf = new Map<Piece, number>();
-    for (const p of pieces) {
-      let lane = laneEnds.findIndex((end) => end <= p.s);
+    const pieces: Piece[] = all.filter((l) => l.start < hi && l.end > lo).map((l) => {
+      const s = Math.max(l.start, lo) - lo, e = Math.min(l.end, hi) - lo;
+      let lane = laneEnds.findIndex((end) => end <= s);
       if (lane < 0) lane = laneEnds.push(0) - 1;
-      laneEnds[lane] = p.e;
-      laneOf.set(p, lane);
-    }
+      laneEnds[lane] = e;
+      return { leaf: l, s, e, lane };
+    });
     const here = groups.filter((u) => u.start < hi && u.end > lo);
     // A union that is the whole record is already named in the heading.
     const nested = here.filter((u) => u.path !== '');
@@ -252,15 +255,14 @@ function byteMap(r: LayoutRecord, all: Leaf[], ms: boolean, cacheLine = 0): HTML
     lanes.style.gridTemplateRows =
       `${top ? '16px ' : ''}repeat(${Math.max(1, laneEnds.length)}, 24px)`;
     for (const u of here) {
-      const mine = pieces.filter((p) => inside(p.leaf.path, u));
+      const mine = pieces.filter((p) => inside(p.leaf.path, u)).map((p) => p.lane);
       if (!mine.length) continue;
-      const first = Math.min(...mine.map((p) => laneOf.get(p)!));
-      const last = Math.max(...mine.map((p) => laneOf.get(p)!));
       const cols = `${Math.max(u.start, lo) - lo + 1} / ${Math.min(u.end, hi) - lo + 1}`;
       const isLabelled = labelled.includes(u);
       const frame = el('div', 'union');
       frame.style.gridColumn = cols;
-      frame.style.gridRow = `${isLabelled ? 1 : first + top + 1} / ${last + top + 2}`;
+      frame.style.gridRow =
+        `${isLabelled ? 1 : Math.min(...mine) + top + 1} / ${Math.max(...mine) + top + 2}`;
       if (u.start < lo) frame.classList.add('cont-t');
       if (u.end > hi) frame.classList.add('cont-b');
       lanes.append(frame);
@@ -274,10 +276,9 @@ function byteMap(r: LayoutRecord, all: Leaf[], ms: boolean, cacheLine = 0): HTML
       }
     }
     for (const p of pieces) {
-      const lane = laneOf.get(p)! + top;
       const seg = el('div', `seg cat-${p.leaf.cat}`);
       seg.style.gridColumn = `${p.s + 1} / ${p.e + 1}`;
-      seg.style.gridRow = String(lane + 1);
+      seg.style.gridRow = String(p.lane + top + 1);
       if (p.leaf.start < lo) seg.classList.add('cont-l');
       if (p.leaf.end > hi) seg.classList.add('cont-r');
       if (p.e - p.s >= 8 && p.leaf.start >= lo) seg.textContent = label(p.leaf.node, ms);
@@ -297,7 +298,7 @@ function legend(all: Leaf[]): HTMLElement {
   for (const [cat, text] of CATEGORIES) {
     if (!present.has(cat)) continue;
     const item = el('span');
-    item.append(el('span', `sw cat-${cat}`), text);
+    item.append(swatch(cat), text);
     box.append(item);
   }
   return box;
@@ -309,12 +310,9 @@ function members(
   r: LayoutRecord, cats: Map<string, Category>, ms: boolean, cacheLine: number,
 ): HTMLElement {
   const table = el('table', 'members');
-  const head = el('tr');
-  head.append(el('th', 'num', 'offset'), el('th', 'num', 'size'), el('th', 'num', 'align'),
-              el('th', '', ''));
-  table.append(el('thead'));
-  table.tHead!.append(head);
-  const body = el('tbody');
+  table.createTHead().insertRow().append(
+    el('th', 'num', 'offset'), el('th', 'num', 'size'), el('th', 'num', 'align'), el('th'));
+  const body = table.createTBody();
   // Rows come in tree order, which is offset order except for members that
   // overlap others, so mark each boundary before the first row that starts
   // at or after it.
@@ -323,58 +321,46 @@ function members(
   // Depths of the unions a row sits in, for the rules drawn at its left.
   const walk = (nodes: LayoutNode[], prefix: string, depth: number, inUnion: number[]) => {
     nodes.forEach((n, i) => {
-      const path = prefix ? `${prefix}.${i}` : `${i}`;
+      const path = child(prefix, i);
       const [start] = bits(n);
       if (line && start >= next) {
         while (start >= next + line) next += line;
         const mark = el('tr', 'cacheline');
-        mark.append(el('td'), el('td'), el('td'));
-        mark.append(el('td', '', `cache line ${next / line} (byte ${next / 8})`));
+        mark.append(el('td'), el('td'), el('td'),
+                    el('td', '', `cache line ${next / line} (byte ${next / 8})`));
         body.append(mark);
         next += line;
       }
       const tr = el('tr');
       tr.dataset.path = path;
-      tr.append(el('td', 'num', fmtOffset(start)), el('td', 'num', fmtSizeOf(n)),
-                el('td', 'num', fmtAlign(n)));
-      const td = el('td', 'desc');
-      td.style.paddingLeft = `${depth * 1.25 + (inUnion.length ? 0.6 : 0)}em`;
+      const td = descCell(n, ms, depth * 1.25 + (inUnion.length ? 0.6 : 0), cats.get(path));
       if (inUnion.length) {
         td.classList.add('in-union');
         td.style.backgroundPosition = inUnion.map((d) => `${d * 1.25}em 0`).join(', ');
         td.style.backgroundImage = inUnion.map(() => 'var(--union-rule)').join(', ');
       }
-      const cat = cats.get(path);
-      td.append(el('span', cat ? `sw cat-${cat}` : 'sw'));
-      describe(td, n, ms);
-      const isUnion = n.kind === 'record' && n.tag === 'union';
       notes(td, n);
-      tr.append(td);
+      tr.append(el('td', 'num', fmtOffset(start)), el('td', 'num', fmtSize(n)),
+                el('td', 'num', fmtAlign(n)), td);
       body.append(tr);
       if (n.kind === 'record' && n.members)
-        walk(n.members, path, depth + 1, isUnion ? [...inUnion, depth] : inUnion);
+        walk(n.members, path, depth + 1, n.tag === 'union' ? [...inUnion, depth] : inUnion);
     });
   };
   walk(r.members, '', 0, r.tag === 'union' ? [0] : []);
-  if (!r.members.length) {
-    const tr = el('tr');
-    const td = el('td', 'dim', '(no members)');
-    td.colSpan = 4;
-    tr.append(td);
-    body.append(tr);
-  }
-  table.append(body);
+  if (!r.members.length)
+    body.insertRow().append(Object.assign(el('td', 'dim', '(no members)'), { colSpan: 4 }));
   return table;
 }
 
 // --- Records --------------------------------------------------------------
 
-function heading(r: LayoutRecord, hooks: Hooks): HTMLElement {
+function heading(r: LayoutRecord, locate: Locate): HTMLElement {
   const h = el('h2');
   span(h, 'tag', r.tag);
   const name = el('button', 'name', r.name);
   name.title = `Line ${r.location.line}`;
-  name.onclick = () => hooks.locate(r.location.line, r.location.column);
+  name.onclick = () => locate(r.location.line, r.location.column);
   h.append(' ', name);
   return h;
 }
@@ -401,8 +387,8 @@ function summary(r: LayoutRecord, endian: Report['endian']): HTMLElement {
   return p;
 }
 
-function traits(r: LayoutRecord): HTMLElement | undefined {
-  if (!r.traits) return undefined;
+function traits(card: HTMLElement, r: LayoutRecord) {
+  if (!r.traits) return;
   const p = el('p', 'traits');
   const items: [string, boolean][] = [
     ['is_standard_layout', r.traits.standard_layout],
@@ -414,11 +400,11 @@ function traits(r: LayoutRecord): HTMLElement | undefined {
     item.append(el('code', '', name), ` ${yes ? 'yes' : 'no'}`);
     p.append(item);
   }
-  return p;
+  card.append(p);
 }
 
-function reorder(r: LayoutRecord): HTMLElement | undefined {
-  if (!r.reorder) return undefined;
+function reorder(card: HTMLElement, r: LayoutRecord) {
+  if (!r.reorder) return;
   const p = el('p', 'reorder');
   p.append('Reordering the fields ');
   span(p, 'saves', `saves ${fmtAmount((r.size - r.reorder.size) * 8)}`);
@@ -427,7 +413,7 @@ function reorder(r: LayoutRecord): HTMLElement | undefined {
     if (i) p.append(', ');
     p.append(el('code', '', f || '(unnamed)'));
   });
-  return p;
+  card.append(p);
 }
 
 /** Hovering a member highlights it in every view; hovering a base or a
@@ -458,26 +444,22 @@ function linkHover(card: HTMLElement) {
   });
 }
 
-function record(r: LayoutRecord, report: Report, hooks: Hooks): HTMLElement {
-  const ms = report.abi === 'microsoft';
+function record(r: LayoutRecord, report: Report, locate: Locate): HTMLElement {
+  const ms = isMs(report);
   const cacheLine = report.cache_line ?? 0;
   const card = el('article', 'card');
-  card.append(heading(r, hooks), summary(r, report.endian));
-  const t = traits(r);
-  if (t) card.append(t);
-
-  const all = leaves(r.members, '', false, []);
+  card.append(heading(r, locate), summary(r, report.endian));
+  traits(card, r);
+  const all = leaves(r.members, '');
   if (r.size > 0 && all.length) card.append(legend(all), byteMap(r, all, ms, cacheLine));
-
-  card.append(members(r, new Map(all.map((l) => [l.path, l.cat])), ms, cacheLine));
-  const re = reorder(r);
-  if (re) card.append(re);
+  card.append(members(r, categories(all), ms, cacheLine));
+  reorder(card, r);
   linkHover(card);
   return card;
 }
 
 function abiText(report: Report): string {
-  return `${report.abi === 'microsoft' ? 'Microsoft' : 'Itanium'} C++ ABI · ` +
+  return `${isMs(report) ? 'Microsoft' : 'Itanium'} C++ ABI · ` +
     `${report.pointer_size}-byte pointers · ${report.endian}-endian`;
 }
 
@@ -555,7 +537,7 @@ function merge(a: LayoutNode[], b: LayoutNode[], pa: string, pb: string, depth: 
 }
 
 const cells = (n?: LayoutNode) =>
-  (n ? [fmtOffset(bits(n)[0]), fmtSizeOf(n), fmtAlign(n)] : ['', '', '']);
+  (n ? [fmtOffset(bits(n)[0]), fmtSize(n), fmtAlign(n)] : ['', '', '']);
 
 function sameRow(p: Pair): boolean {
   if (!p.a || !p.b) return false;
@@ -565,27 +547,20 @@ function sameRow(p: Pair): boolean {
 
 function compareTable(rows: Pair[], a: Report, b: Report, cats: Map<string, Category>): HTMLElement {
   const table = el('table', 'members compare');
-  const head = el('thead');
   const top = el('tr', 'targets');
   top.append(el('th', 'mark'));
-  for (const t of [a.target, b.target]) {
-    const th = el('th', 'group', t);
-    th.colSpan = 3;
-    top.append(th);
-  }
+  for (const t of [a.target, b.target]) top.append(Object.assign(el('th', 'group', t), { colSpan: 3 }));
   top.append(el('th'));
   const cols = el('tr');
   cols.append(el('th', 'mark'));
-  for (let k = 0; k < 2; k++) {
-    for (const c of ['offset', 'size', 'align']) {
-      cols.append(el('th', `num${k && c === 'offset' ? ' split' : ''}`, c));
-    }
+  for (const k of [0, 1]) {
+    for (const c of ['offset', 'size', 'align'])
+      cols.append(el('th', k && c === 'offset' ? 'num split' : 'num', c));
   }
   cols.append(el('th'));
-  head.append(top, cols);
-  table.append(head);
+  table.createTHead().append(top, cols);
 
-  const body = el('tbody');
+  const body = table.createTBody();
   for (const p of rows) {
     const changed = !sameRow(p);
     const tr = el('tr', changed ? 'changed' : '');
@@ -603,23 +578,17 @@ function compareTable(rows: Pair[], a: Report, b: Report, cats: Map<string, Cate
         tr.append(el('td', cls, c));
       });
     }
-    const td = el('td', 'desc');
-    td.style.paddingLeft = `${p.depth * 1.25}em`;
-    const cat = cats.get(p.pa ?? '') ?? cats.get(p.pb ?? '');
-    td.append(el('span', cat ? `sw cat-${cat}` : 'sw'));
-    if (p.a) describe(td, p.a, a.abi === 'microsoft');
-    else describe(td, p.b!, b.abi === 'microsoft');
-    tr.append(td);
+    tr.append(descCell(p.a ?? p.b!, isMs(p.a ? a : b), p.depth * 1.25,
+                       cats.get(p.pa ?? '') ?? cats.get(p.pb ?? '')));
     body.append(tr);
   }
-  table.append(body);
   return table;
 }
 
 function compareRecord(ra: LayoutRecord, rb: LayoutRecord, a: Report, b: Report,
-                       hooks: Hooks): HTMLElement {
+                       locate: Locate): HTMLElement {
   const card = el('article', 'card');
-  card.append(heading(ra, hooks));
+  card.append(heading(ra, locate));
   const rows: Pair[] = [];
   merge(ra.members, rb.members, 'a', 'b', 0, rows);
   if (ra.size === rb.size && ra.align === rb.align && rows.every(sameRow)) {
@@ -629,68 +598,63 @@ function compareRecord(ra: LayoutRecord, rb: LayoutRecord, a: Report, b: Report,
 
   const sides = el('div', 'sides');
   for (const [r, report] of [[ra, a], [rb, b]] as const) {
-    sides.append(el('span', 'target', report.target));
     const s = el('span', 'summary');
     sizeAlign(s, r);
     if (r.padding_bits) s.append(`, padding ${fmtAmount(r.padding_bits)}`);
-    sides.append(s);
+    sides.append(el('span', 'target', report.target), s);
   }
   card.append(sides);
 
-  const la = leaves(ra.members, 'a', false, []);
-  const lb = leaves(rb.members, 'b', false, []);
+  const la = leaves(ra.members, 'a');
+  const lb = leaves(rb.members, 'b');
   const all = [...la, ...lb];
   if (all.length) card.append(legend(all));
   for (const [r, report, ls] of [[ra, a, la], [rb, b, lb]] as const) {
-    if (r.size > 0 && ls.length) {
-      card.append(el('p', 'maplabel', report.target),
-                  byteMap(r, ls, report.abi === 'microsoft'));
-    }
+    if (r.size > 0 && ls.length)
+      card.append(el('p', 'maplabel', report.target), byteMap(r, ls, isMs(report)));
   }
-  card.append(compareTable(rows, a, b, new Map(all.map((l) => [l.path, l.cat]))));
+  card.append(compareTable(rows, a, b, categories(all)));
   linkHover(card);
   return card;
 }
 
-function onlyOn(r: LayoutRecord, target: string, hooks: Hooks): HTMLElement {
+function onlyOn(r: LayoutRecord, target: string, locate: Locate): HTMLElement {
   const card = el('article', 'card');
-  card.append(heading(r, hooks), el('p', 'summary', `only on ${target}`));
+  card.append(heading(r, locate), el('p', 'summary', `only on ${target}`));
   return card;
 }
 
-function renderCompare(frag: DocumentFragment, a: Report, b: Report, hooks: Hooks) {
-  frag.append(el('p', 'meta', `${a.target} (${abiText(a)}) compared with ` +
-                              `${b.target} (${abiText(b)})`));
-  const inB = new Map(b.records.map((r) => [r.name, r]));
-  const inA = new Set(a.records.map((r) => r.name));
-  for (const r of a.records) {
-    const other = inB.get(r.name);
-    frag.append(other ? compareRecord(r, other, a, b, hooks) : onlyOn(r, a.target, hooks));
-  }
-  for (const r of b.records) if (!inA.has(r.name)) frag.append(onlyOn(r, b.target, hooks));
-  if (!a.records.length && !b.records.length)
-    frag.append(el('p', 'empty', 'No records. Declare a struct, class or union.'));
-}
-
 /** Draws report, or with compare, the differences between the two. */
-export function render(out: HTMLElement, report: Report, hooks: Hooks, compare?: Report) {
+export function render(out: HTMLElement, report: Report, locate: Locate, compare?: Report) {
   const frag = document.createDocumentFragment();
   if (compare) {
-    renderCompare(frag, report, compare, hooks);
-    out.append(frag);
-    return;
+    frag.append(el('p', 'meta', `${report.target} (${abiText(report)}) compared with ` +
+                                `${compare.target} (${abiText(compare)})`));
+    const inB = new Map(compare.records.map((r) => [r.name, r]));
+    const inA = new Set(report.records.map((r) => r.name));
+    for (const r of report.records) {
+      const other = inB.get(r.name);
+      frag.append(other ? compareRecord(r, other, report, compare, locate)
+                        : onlyOn(r, report.target, locate));
+    }
+    for (const r of compare.records)
+      if (!inA.has(r.name)) frag.append(onlyOn(r, compare.target, locate));
+  } else {
+    let meta = `${report.target} · ${abiText(report)}`;
+    if (report.cache_line) meta += ` · ${report.cache_line}-byte cache lines`;
+    frag.append(el('p', 'meta', `${meta} · ${plural(report.records.length, 'record')}`));
+    report.records.forEach((r) => frag.append(record(r, report, locate)));
   }
-  let meta = `${report.target} · ${abiText(report)}`;
-  if (report.cache_line) meta += ` · ${report.cache_line}-byte cache lines`;
-  frag.append(el('p', 'meta', `${meta} · ${plural(report.records.length, 'record')}`));
-  if (!report.records.length)
+  if (!report.records.length && !compare?.records.length)
     frag.append(el('p', 'empty', 'No records. Declare a struct, class or union.'));
-  report.records.forEach((r) => frag.append(record(r, report, hooks)));
   out.append(frag);
 }
 
 /** Shows the data-tip of whatever the pointer is over inside root. */
 export function tooltips(root: HTMLElement, box: HTMLElement) {
+  // 14px from the pointer, on whichever side keeps the box in the window.
+  const near = (at: number, size: number, max: number) =>
+    `${Math.max(4, at + 14 + size > max ? at - 14 - size : at + 14)}px`;
   root.addEventListener('pointermove', (ev) => {
     const t = (ev.target as Element).closest<HTMLElement>('[data-tip]');
     if (!t) {
@@ -700,10 +664,8 @@ export function tooltips(root: HTMLElement, box: HTMLElement) {
     box.textContent = t.dataset.tip!;
     box.hidden = false;
     const w = box.offsetWidth, h = box.offsetHeight;
-    const x = ev.clientX + 14 + w > innerWidth ? ev.clientX - 14 - w : ev.clientX + 14;
-    const y = ev.clientY + 14 + h > innerHeight ? ev.clientY - 14 - h : ev.clientY + 14;
-    box.style.left = `${Math.max(4, x)}px`;
-    box.style.top = `${Math.max(4, y)}px`;
+    box.style.left = near(ev.clientX, w, innerWidth);
+    box.style.top = near(ev.clientY, h, innerHeight);
   });
   root.addEventListener('pointerleave', () => (box.hidden = true));
 }

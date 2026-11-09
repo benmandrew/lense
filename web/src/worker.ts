@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 // Runs lense-web.js (clang compiled to WebAssembly) off the main thread.
 import type { FromWorker, ToWorker } from './protocol';
+import type { AnalyzeResult } from './types';
 
 interface LenseModule {
   ccall(name: string, ret: 'number', types: string[], args: unknown[]): number;
@@ -44,19 +45,20 @@ onmessage = async (e: MessageEvent<ToWorker>) => {
     return;
   }
   stderr = [];
+  let result: AnalyzeResult;
   try {
     const m = await load();
     const ptr = m.ccall('lense_analyze', 'number', ['string', 'string'],
                         [msg.code, JSON.stringify(msg.options)]);
     const text = m.UTF8ToString(ptr);
     m._free(ptr);
-    post({ type: 'result', id: msg.id, result: JSON.parse(text),
-           stderr: stderr.join('\n'), ms: performance.now() - start });
+    result = JSON.parse(text);
   } catch (err) {
     // A trap (for example an LLVM fatal error) leaves the module unusable,
     // so start a fresh one for the next request.
     module = null;
-    post({ type: 'result', id: msg.id, result: { error: `lense stopped: ${err}` },
-           stderr: stderr.join('\n'), ms: performance.now() - start });
+    result = { error: `lense stopped: ${err}` };
   }
+  post({ type: 'result', id: msg.id, result, stderr: stderr.join('\n'),
+         ms: performance.now() - start });
 };

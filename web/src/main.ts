@@ -6,7 +6,7 @@ import { tags as t } from '@lezer/highlight';
 import { basicSetup, EditorView } from 'codemirror';
 import EXAMPLES from 'virtual:examples';
 import type { FromWorker, ToWorker } from './protocol';
-import { render, tooltips } from './render';
+import { el, render, tooltips } from './render';
 import type { Options } from './types';
 import './style.css';
 
@@ -75,15 +75,17 @@ function toB64(b: Uint8Array): string {
 const fromB64 = (s: string) =>
   Uint8Array.from(atob(s.replaceAll('-', '+').replaceAll('_', '/')), (c) => c.charCodeAt(0));
 
+const through = (data: BlobPart, stream: CompressionStream | DecompressionStream) =>
+  new Response(new Blob([data]).stream().pipeThrough(stream));
+
 async function pack(s: Saved): Promise<string> {
-  const stream = new Blob([JSON.stringify(s)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
-  return toB64(new Uint8Array(await new Response(stream).arrayBuffer()));
+  const deflated = through(JSON.stringify(s), new CompressionStream('deflate-raw'));
+  return toB64(new Uint8Array(await deflated.arrayBuffer()));
 }
 
 async function unpack(hash: string): Promise<Saved | null> {
   try {
-    const stream = new Blob([fromB64(hash)]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-    return JSON.parse(await new Response(stream).text());
+    return JSON.parse(await through(fromB64(hash), new DecompressionStream('deflate-raw')).text());
   } catch {
     return null;
   }
@@ -157,11 +159,13 @@ function diagnostics(state: EditorState, stderr: string): Diagnostic[] {
 // --- Editor ---------------------------------------------------------------
 
 const highlight = HighlightStyle.define([
-  { tag: [t.keyword, t.controlKeyword, t.modifier, t.operatorKeyword], color: 'var(--syn-keyword)' },
-  { tag: [t.typeName, t.standard(t.typeName)], color: 'var(--syn-type)' },
-  { tag: [t.string, t.character], color: 'var(--syn-string)' },
+  // A rule also covers the tags derived from its own, such as
+  // t.controlKeyword from t.keyword. t.null is a keyword, so it is named.
+  { tag: t.keyword, color: 'var(--syn-keyword)' },
+  { tag: t.typeName, color: 'var(--syn-type)' },
+  { tag: t.string, color: 'var(--syn-string)' },
   { tag: [t.number, t.bool, t.null], color: 'var(--syn-number)' },
-  { tag: [t.comment, t.lineComment, t.blockComment], color: 'var(--syn-comment)', fontStyle: 'italic' },
+  { tag: t.comment, color: 'var(--syn-comment)', fontStyle: 'italic' },
   { tag: [t.processingInstruction, t.macroName], color: 'var(--syn-preproc)' },
   { tag: [t.definition(t.variableName), t.function(t.variableName), t.function(t.propertyName)],
     color: 'var(--syn-function)' },
@@ -206,13 +210,14 @@ const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'modu
 let ready = false, busy = false, seq = 0;
 let queued: ToWorker | null = null;
 
-function send(msg: ToWorker) {
-  if (!ready || busy) {
-    queued = msg;
-    return;
-  }
+/** Posts msg, or the one held back, once the worker is free. A newer
+ *  message replaces a held one. */
+function send(msg?: ToWorker) {
+  if (msg) queued = msg;
+  if (!ready || busy || !queued) return;
   busy = true;
-  worker.postMessage(msg);
+  worker.postMessage(queued);
+  queued = null;
 }
 
 const examples = [{ name: 'sample', lang: 'c++' as const, code: SAMPLE }, ...EXAMPLES];
@@ -246,45 +251,33 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'ready':
       ready = true;
       status(`clang ready in ${Math.round(m.ms)} ms`);
-      if (queued) {
-        const q = queued;
-        queued = null;
-        send(q);
-      }
+      send();
       return;
     case 'fatal':
       status(`Could not load clang: ${m.message}`, true);
       return;
     case 'result': {
       busy = false;
-      if (queued) {
-        const q = queued;
-        queued = null;
-        send(q);
-      }
+      send();
       if (m.id !== seq) return;
       view.dispatch(setDiagnostics(view.state, diagnostics(view.state, m.stderr)));
       output.replaceChildren();
       const r = m.result;
       if ('error' in r) {
-        output.append(Object.assign(document.createElement('p'), { className: 'failure', textContent: r.error }));
+        output.append(el('p', 'failure', r.error));
         status('lense failed', true);
       } else {
         if (!r.ok) {
-          output.append(Object.assign(document.createElement('p'), {
-            className: 'failure',
-            textContent: 'clang reported errors. The records it could lay out are below.',
-          }));
+          output.append(el('p', 'failure',
+                           'clang reported errors. The records it could lay out are below.'));
         }
-        render(output, r.report, { locate }, r.compare);
+        render(output, r.report, locate, r.compare);
         status(`${r.ok ? '' : 'errors · '}${Math.round(m.ms)} ms`, !r.ok);
       }
       if (m.stderr.trim()) {
-        const d = document.createElement('details');
-        d.className = 'stderr';
+        const d = el('details', 'stderr');
         d.open = !('error' in r) && !r.ok && !r.report.records.length;
-        d.append(Object.assign(document.createElement('summary'), { textContent: 'clang output' }),
-                 Object.assign(document.createElement('pre'), { textContent: m.stderr }));
+        d.append(el('summary', '', 'clang output'), el('pre', '', m.stderr));
         output.append(d);
       }
     }
@@ -293,6 +286,18 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
 
 // --- Start ----------------------------------------------------------------
 
+/** Replaces the editor text without the typing delay; callers analyze at once. */
+function setCode(code: string) {
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: code } });
+  clearTimeout(timer);
+}
+
+/** Selects value, adding it first if a saved link names one the page lacks. */
+function choose(box: HTMLSelectElement, value: string, text = value) {
+  box.value = value;
+  if (box.value !== value) box.append(new Option(text, value, true, true));
+}
+
 async function start() {
   const saved = (location.hash.length > 1 && (await unpack(location.hash.slice(1)))) || null;
   // Links saved before an option existed leave it out.
@@ -300,18 +305,13 @@ async function start() {
     code: SAMPLE, lang: 'c++', std: '', target: 'x86_64-linux-gnu', compare: '', cacheLine: 64,
     expand: false, flags: '', ...saved,
   };
-  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: s.code } });
-  clearTimeout(timer);
+  setCode(s.code);
   langBox.value = s.lang;
   fillStandards(s.lang, s.std);
-  targetBox.value = s.target;
-  if (targetBox.value !== s.target) targetBox.append(new Option(s.target, s.target, true, true));
+  choose(targetBox, s.target);
   compareBox.append(...[...targetBox.options].map((o) => new Option(o.text, o.value)));
-  compareBox.value = s.compare;
-  if (compareBox.value !== s.compare) compareBox.append(new Option(s.compare, s.compare, true, true));
-  cacheLineBox.value = String(s.cacheLine);
-  if (cacheLineBox.value !== String(s.cacheLine))
-    cacheLineBox.append(new Option(`${s.cacheLine} bytes`, String(s.cacheLine), true, true));
+  choose(compareBox, s.compare);
+  choose(cacheLineBox, String(s.cacheLine), `${s.cacheLine} bytes`);
   expandBox.checked = s.expand;
   flagsBox.value = s.flags;
 
@@ -326,8 +326,7 @@ async function start() {
       langBox.value = e.lang;
       fillStandards(e.lang, '');
     }
-    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: e.code } });
-    clearTimeout(timer);
+    setCode(e.code);
     analyze();
   };
 
