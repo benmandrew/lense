@@ -1,6 +1,6 @@
 # lense
 
-`lense` prints the memory layout of every C and C++ struct, class and union in a source file: member offsets, padding, base subobjects, vtable pointers and, with `--vtables`, the vtables themselves. It reads the layouts from clang 23 through *LibTooling*, and also runs in a browser as WebAssembly.
+`lense` prints the memory layout of every C and C++ struct, class and union in a source file: member offsets, padding, base subobjects, and vtable pointers. It reads the layouts from clang 23 through *LibTooling*, and also runs in a browser as WebAssembly.
 
 ```
 $ printf 'struct Msg { char tag; long len; char flags; };\n' | lense --target=x86_64-linux-gnu -
@@ -36,7 +36,6 @@ lense [options] <file | -> [-- <clang arguments>]
 | `--target=<triple>` | Lay out for another target, such as `x86_64-pc-windows-msvc` |
 | `--compare=<triple>` | Also lay out for a second target, side by side |
 | `--record=<name>` | Show only the named records |
-| `--vtables` | Also print vtable layouts |
 | `--expand-system` | Expand members whose types come from system headers |
 | `--source` | Print each record's definition above its layout |
 | `--cache-line=<bytes>` | Mark cache-line boundaries (default 64, 0 for none) |

@@ -55,8 +55,7 @@
           "name": "d",
           "align": 8
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "ByAttribute",
@@ -100,8 +99,7 @@
           "offset": 1,
           "size": 15
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "ByGnuAttribute",
@@ -145,8 +143,7 @@
           "offset": 4,
           "size": 28
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Packed",
@@ -189,8 +186,7 @@
           "align": 4,
           "unaligned": true
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Pack2",
@@ -243,8 +239,7 @@
           "align": 8,
           "unaligned": true
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Packed1",
@@ -279,8 +274,7 @@
           "align": 4,
           "unaligned": true
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "HoldsPacked",
@@ -334,8 +328,7 @@
             }
           ]
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Bits",
@@ -435,8 +428,7 @@
           "bit_offset": 36,
           "bit_size": 28
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Big",
@@ -519,8 +511,7 @@
           "offset": 84,
           "size": 4
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Shuffled",
@@ -631,8 +622,7 @@
           "offset": 26,
           "size": 6
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Tight",
@@ -698,8 +688,7 @@
           "name": "c",
           "align": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Flexible",
@@ -791,8 +780,7 @@
           "offset": 20,
           "size": 4
         }
-      ],
-      "vtables": []
+      ]
     }
   ]
 }

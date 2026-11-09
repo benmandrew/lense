@@ -118,11 +118,6 @@ public:
       reset();
     }
     reorder(r);
-
-    for (const VTable &vt : r.vtables) {
-      os << '\n';
-      vtable(vt);
-    }
   }
 
   // "struct S  size 16, align 8 from d, padding 7 bytes"
@@ -291,11 +286,6 @@ public:
       dim();
       os << "  " << n.type;
       reset();
-      if (n.vtable) {
-        color(Color::YELLOW);
-        os << "  -> " << n.vtable->table << '[' << n.vtable->slot << ']';
-        reset();
-      }
       break;
     case NodeKind::VBPtr:
       color(Color::MAGENTA, true);
@@ -318,103 +308,6 @@ public:
       os << "padding";
       reset();
       break;
-    }
-  }
-
-  void vtable(const VTable &vt) {
-    bold();
-    os << vt.name;
-    reset();
-    dim();
-    if (vt.vfptrOffset)
-      os << "  vfptr at " << *vt.vfptrOffset << ',';
-    os << (vt.vfptrOffset ? " " : "  ") << vt.entries.size()
-       << (vt.entries.size() == 1 ? " entry" : " entries");
-    reset();
-    os << '\n';
-
-    size_t idxW = std::to_string(vt.entries.size()).size() + 3;
-    // An address point sits between two entries. Print it after the entry
-    // before it: a table with no functions has its address point at the
-    // index where the next table starts.
-    auto points = [&](size_t index) {
-      for (const AddressPoint &ap : vt.addressPoints) {
-        if (ap.index != index)
-          continue;
-        os << std::string(idxW + 2, ' ');
-        color(Color::YELLOW);
-        os << "address point:";
-        for (size_t k = 0; k < ap.subobjects.size(); ++k)
-          os << (k ? ", " : " ") << ap.subobjects[k].type << " @"
-             << ap.subobjects[k].offset;
-        reset();
-        os << '\n';
-      }
-    };
-    points(0);
-    for (size_t i = 0; i < vt.entries.size(); ++i) {
-      if (i && std::find(vt.tableStarts.begin(), vt.tableStarts.end(), i) !=
-                   vt.tableStarts.end())
-        os << '\n';
-      std::string idx = std::to_string(i);
-      os << std::string(idxW - idx.size(), ' ') << idx << "  ";
-      entry(vt.entries[i]);
-      os << '\n';
-      points(i + 1);
-    }
-  }
-
-  void entry(const VTableEntry &e) {
-    auto offsetEntry = [&](const char *label) {
-      dim();
-      os << label;
-      reset();
-      os << ' ' << e.value;
-    };
-    switch (e.kind) {
-    case EntryKind::VCallOffset: offsetEntry("vcall_offset"); break;
-    case EntryKind::VBaseOffset: offsetEntry("vbase_offset"); break;
-    case EntryKind::OffsetToTop: offsetEntry("offset_to_top"); break;
-    case EntryKind::RTTI:
-      dim();
-      os << "RTTI";
-      reset();
-      os << ' ' << e.text;
-      break;
-    default:
-      os << e.text;
-      dim();
-      if (e.kind == EntryKind::CompleteDtor)
-        os << " [complete]";
-      else if (e.kind == EntryKind::DeletingDtor)
-        os << (ms ? " [scalar deleting]" : " [deleting]");
-      else if (e.kind == EntryKind::UnusedFunction)
-        os << " [unused]";
-      reset();
-      if (e.pure) {
-        color(Color::RED);
-        os << " [pure]";
-        reset();
-      }
-    }
-    if (e.thunk) {
-      const Thunk &t = *e.thunk;
-      color(Color::YELLOW);
-      os << " [thunk: this " << (t.thisAdjust < 0 ? "-" : "+")
-         << (t.thisAdjust < 0 ? -t.thisAdjust : t.thisAdjust);
-      if (t.vcallOffsetAt)
-        os << ", vcall offset at " << t.vcallOffsetAt;
-      else if (t.virtualThis)
-        os << ", virtual this adjustment";
-      if (t.returnAdjust)
-        os << ", return " << (t.returnAdjust < 0 ? "-" : "+")
-           << (t.returnAdjust < 0 ? -t.returnAdjust : t.returnAdjust);
-      if (t.vbaseOffsetAt)
-        os << ", vbase offset at " << t.vbaseOffsetAt;
-      else if (t.virtualReturn)
-        os << ", virtual return adjustment";
-      os << ']';
-      reset();
     }
   }
 };

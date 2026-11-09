@@ -23,12 +23,6 @@ struct Registry<short>  size 2, align 2 from item
 struct Base  size 16, align 8 from vptr, data size 12, padding 4 bytes
   is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
   offset  size  align
-       0     8      8  vptr  Base  -> vtable for Base[2]
+       0     8      8  vptr  Base
        8     4      4  int x
       12     4         padding
-
-vtable for Base  3 entries
-   0  offset_to_top 0
-   1  RTTI Base
-      address point: Base @0
-   2  int Base::id() const

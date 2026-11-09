@@ -37,8 +37,7 @@
           "name": "b",
           "align": 8
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "f()::S",
@@ -72,8 +71,7 @@
           "name": "a",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "T0",
@@ -104,47 +102,7 @@
           "offset": 0,
           "size": 8,
           "type": "T0",
-          "align": 8,
-          "points_to": {
-            "table": "vtable for T0",
-            "slot": 2
-          }
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vtable for T0",
-          "table_starts": [
-            0
-          ],
-          "address_points": [
-            {
-              "index": 2,
-              "subobjects": [
-                {
-                  "type": "T0",
-                  "offset": 0
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "offset_to_top",
-              "value": 0
-            },
-            {
-              "index": 1,
-              "kind": "rtti",
-              "type": "T0"
-            },
-            {
-              "index": 2,
-              "kind": "function",
-              "function": "int T0::m1()"
-            }
-          ]
+          "align": 8
         }
       ]
     },
@@ -179,8 +137,7 @@
           "name": "c",
           "align": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "h<1>()::S",
@@ -225,8 +182,7 @@
             }
           ]
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "h<1>()::S::In",
@@ -259,8 +215,7 @@
           "name": "c",
           "align": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "h<2>()::S",
@@ -305,8 +260,7 @@
             }
           ]
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "h<2>()::S::In",
@@ -339,8 +293,7 @@
           "name": "c",
           "align": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "(lambda at 16:11)::operator()()::L",
@@ -374,8 +327,7 @@
           "name": "s",
           "align": 2
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "(lambda at 17:11)::operator()()::L",
@@ -409,8 +361,7 @@
           "name": "i",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Q",
@@ -445,8 +396,7 @@
           "offset": 0,
           "size": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Q::M",
@@ -481,8 +431,7 @@
           "offset": 0,
           "size": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Q::M::k(double)::K",
@@ -516,8 +465,7 @@
           "name": "z",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     }
   ]
 }

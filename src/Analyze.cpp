@@ -9,7 +9,6 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/AST/VTableBuilder.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/Lexer.h"
@@ -17,20 +16,12 @@
 #include "llvm/Support/MemoryBuffer.h"
 
 #include <algorithm>
-#include <map>
 #include <numeric>
 
 using namespace clang;
 
 namespace lense {
 namespace {
-
-// The complete object that a subobject belongs to. Vtable pointers are
-// resolved against the complete object's vtable.
-struct CompleteObject {
-  const CXXRecordDecl *decl = nullptr;
-  uint64_t offsetBits = 0;
-};
 
 class Analyzer {
 public:
@@ -65,7 +56,7 @@ public:
       addSource(R, RD);
 
     R.layout.role = Role::Root;
-    layoutRecord(R.layout, RD, 0, CompleteObject{CXX, 0}, true);
+    layoutRecord(R.layout, RD, 0, true);
     R.layout.sizeBits = C.toBits(L.getSize());
     R.layout.alignBits = C.toBits(L.getAlignment());
     alignSource(R, RD);
@@ -84,13 +75,6 @@ public:
     }
     if (opts.reorder)
       R.reorder = findReorder(RD, R);
-
-    if (opts.vtables && CXX && CXX->isDynamicClass()) {
-      if (ms)
-        addMicrosoftVTables(R, CXX);
-      else
-        addItaniumVTable(R, CXX);
-    }
     return R;
   }
 
@@ -622,7 +606,7 @@ private:
   // Fills `N` with the layout of `RD` placed at `offsetBits`. Virtual bases are
   // laid out by the complete object, so only include them for one.
   void layoutRecord(Node &N, const RecordDecl *RD, uint64_t offsetBits,
-                    CompleteObject complete, bool includeVBases) {
+                    bool includeVBases) {
     const ASTRecordLayout &L = C.getASTRecordLayout(RD);
     auto *CXX = dyn_cast<CXXRecordDecl>(RD);
     N.kind = NodeKind::Record;
@@ -642,10 +626,9 @@ private:
 
     if (CXX) {
       const CXXRecordDecl *primary = L.getPrimaryBase();
-      if (!ms && CXX->isDynamicClass() && !primary)
-        N.children.push_back(vptr(CXX, offsetBits, complete));
-      else if (ms && L.hasOwnVFPtr())
-        N.children.push_back(vfptr(CXX, offsetBits, complete));
+      // Itanium: a dynamic class with no primary base owns a vtable pointer.
+      if (ms ? L.hasOwnVFPtr() : CXX->isDynamicClass() && !primary)
+        N.children.push_back(vptr(CXX, offsetBits));
 
       std::vector<const CXXRecordDecl *> bases;
       for (const CXXBaseSpecifier &B : CXX->bases())
@@ -659,8 +642,7 @@ private:
       for (const CXXRecordDecl *B : bases) {
         Node child;
         child.role = B == primary ? Role::PrimaryBase : Role::Base;
-        layoutRecord(child, B,
-                     offsetBits + C.toBits(L.getBaseClassOffset(B)), complete,
+        layoutRecord(child, B, offsetBits + C.toBits(L.getBaseClassOffset(B)),
                      false);
         child.alignBits =
             C.toBits(C.getASTRecordLayout(B).getNonVirtualAlignment());
@@ -709,9 +691,7 @@ private:
             child.type = std::string(child.name.empty() ? "(anonymous "
                                                         : "(unnamed ") +
                          def->getKindName().str() + ")";
-          layoutRecord(child, def, fieldBits,
-                       CompleteObject{dyn_cast<CXXRecordDecl>(def), fieldBits},
-                       true);
+          layoutRecord(child, def, fieldBits, true);
           child.alignBits = fieldAlign(F);
           // A [[no_unique_address]] member may share its tail padding with
           // later members, so it only owns its data size (zero if empty).
@@ -748,7 +728,7 @@ private:
         Node child;
         child.role = VB == L.getPrimaryBase() ? Role::PrimaryVirtualBase
                                               : Role::VirtualBase;
-        layoutRecord(child, VB, vbBits, complete, false);
+        layoutRecord(child, VB, vbBits, false);
         child.alignBits =
             C.toBits(C.getASTRecordLayout(VB).getNonVirtualAlignment());
         child.sizeBits =
@@ -758,63 +738,12 @@ private:
     }
   }
 
-  // Itanium: a class with no primary base owns a vtable pointer. It points at
-  // the address point of this subobject in the complete object's vtable.
-  Node vptr(const CXXRecordDecl *owner, uint64_t offsetBits,
-            CompleteObject complete) {
+  // An Itanium vtable pointer or a Microsoft vftable pointer.
+  Node vptr(const CXXRecordDecl *owner, uint64_t offsetBits) {
     Node n = leaf(NodeKind::VPtr, offsetBits, pointerBits);
     n.type = recordName(owner);
     n.alignBits = pointerAlign;
-    if (!complete.decl || !opts.vtables)
-      return n;
-    auto *ctx = dyn_cast<ItaniumVTableContext>(C.getVTableContext());
-    if (!ctx)
-      return n;
-    const VTableLayout &VL = ctx->getVTableLayout(complete.decl);
-    BaseSubobject key(owner,
-                      C.toCharUnitsFromBits(offsetBits - complete.offsetBits));
-    auto it = VL.getAddressPoints().find(key);
-    if (it != VL.getAddressPoints().end())
-      n.vtable = VTableRef{"vtable for " + recordName(complete.decl),
-                           unsigned(VL.getVTableOffset(it->second.VTableIndex) +
-                                    it->second.AddressPointIndex)};
     return n;
-  }
-
-  // Microsoft: each vfptr points at its own vftable, found by its offset in
-  // the complete object.
-  Node vfptr(const CXXRecordDecl *owner, uint64_t offsetBits,
-             CompleteObject complete) {
-    Node n = leaf(NodeKind::VPtr, offsetBits, pointerBits);
-    n.type = recordName(owner);
-    n.alignBits = pointerAlign;
-    if (!complete.decl || !opts.vtables)
-      return n;
-    auto *ctx = dyn_cast<MicrosoftVTableContext>(C.getVTableContext());
-    if (!ctx)
-      return n;
-    CharUnits rel = C.toCharUnitsFromBits(offsetBits - complete.offsetBits);
-    for (const auto &info : ctx->getVFPtrOffsets(complete.decl)) {
-      if (info->FullOffsetInMDC != rel)
-        continue;
-      const VTableLayout &VL =
-          ctx->getVFTableLayout(complete.decl, info->FullOffsetInMDC);
-      unsigned slot = 0;
-      auto comps = VL.vtable_components();
-      while (slot < comps.size() &&
-             comps[slot].getKind() == VTableComponent::CK_RTTI)
-        ++slot;
-      n.vtable = VTableRef{vftableName(complete.decl, *info), slot};
-    }
-    return n;
-  }
-
-  std::string vftableName(const CXXRecordDecl *RD, const VPtrInfo &info) {
-    std::string s = "vftable for ";
-    // Same naming as clang's -fdump-vtable-layouts.
-    for (const CXXRecordDecl *B : llvm::reverse(info.PathToIntroducingObject))
-      s += recordName(B) + " in ";
-    return s + recordName(RD);
   }
 
   // Collects every occupied bit range and returns the gaps between them.
@@ -859,130 +788,6 @@ private:
         N.children.begin(), N.children.end(), h.offsetBits,
         [](uint64_t off, const Node &c) { return off < c.offsetBits; });
     N.children.insert(pos, std::move(pad));
-  }
-
-  // __PRETTY_FUNCTION__ spelling, minus the " [T = int]" suffix it adds
-  // for members of templates; the class name already shows the arguments.
-  static std::string functionName(const CXXMethodDecl *MD) {
-    std::string s = PredefinedExpr::ComputeName(
-        PredefinedIdentKind::PrettyFunctionNoVirtual, MD);
-    size_t paren = s.rfind(')');
-    size_t bracket = s.rfind(" [");
-    if (!s.empty() && s.back() == ']' && bracket != std::string::npos &&
-        (paren == std::string::npos || bracket > paren))
-      s.erase(bracket);
-    return s;
-  }
-
-  VTableEntry entry(const VTableComponent &comp) {
-    VTableEntry e;
-    switch (comp.getKind()) {
-    case VTableComponent::CK_VCallOffset:
-      e.kind = EntryKind::VCallOffset;
-      e.value = comp.getVCallOffset().getQuantity();
-      break;
-    case VTableComponent::CK_VBaseOffset:
-      e.kind = EntryKind::VBaseOffset;
-      e.value = comp.getVBaseOffset().getQuantity();
-      break;
-    case VTableComponent::CK_OffsetToTop:
-      e.kind = EntryKind::OffsetToTop;
-      e.value = comp.getOffsetToTop().getQuantity();
-      break;
-    case VTableComponent::CK_RTTI:
-      e.kind = EntryKind::RTTI;
-      e.text = recordName(comp.getRTTIDecl());
-      break;
-    case VTableComponent::CK_FunctionPointer:
-    case VTableComponent::CK_CompleteDtorPointer:
-    case VTableComponent::CK_DeletingDtorPointer:
-    case VTableComponent::CK_UnusedFunctionPointer: {
-      auto k = comp.getKind();
-      e.kind = k == VTableComponent::CK_FunctionPointer ? EntryKind::Function
-               : k == VTableComponent::CK_CompleteDtorPointer
-                   ? EntryKind::CompleteDtor
-               : k == VTableComponent::CK_DeletingDtorPointer
-                   ? EntryKind::DeletingDtor
-                   : EntryKind::UnusedFunction;
-      const CXXMethodDecl *MD = k == VTableComponent::CK_UnusedFunctionPointer
-                                    ? comp.getUnusedFunctionDecl()
-                                    : comp.getFunctionDecl();
-      e.text = functionName(MD);
-      e.pure = MD->isPureVirtual();
-      break;
-    }
-    }
-    return e;
-  }
-
-  std::vector<VTableEntry> entries(const VTableLayout &VL) {
-    std::vector<VTableEntry> out;
-    for (const VTableComponent &comp : VL.vtable_components())
-      out.push_back(entry(comp));
-    for (const auto &[index, info] : VL.vtable_thunks()) {
-      if (index >= out.size())
-        continue;
-      Thunk t;
-      t.thisAdjust = info.This.NonVirtual;
-      t.returnAdjust = info.Return.NonVirtual;
-      t.virtualThis = !info.This.Virtual.isEmpty();
-      t.virtualReturn = !info.Return.Virtual.isEmpty();
-      if (!ms) {
-        t.vcallOffsetAt = info.This.Virtual.Itanium.VCallOffsetOffset;
-        t.vbaseOffsetAt = info.Return.Virtual.Itanium.VBaseOffsetOffset;
-      }
-      out[index].thunk = t;
-    }
-    return out;
-  }
-
-  void addItaniumVTable(Record &R, const CXXRecordDecl *RD) {
-    auto *ctx = dyn_cast<ItaniumVTableContext>(C.getVTableContext());
-    if (!ctx)
-      return;
-    const VTableLayout &VL = ctx->getVTableLayout(RD);
-    VTable vt;
-    vt.name = "vtable for " + recordName(RD);
-    vt.entries = entries(VL);
-    for (size_t i = 0; i < VL.getNumVTables(); ++i)
-      vt.tableStarts.push_back(VL.getVTableOffset(i));
-
-    // The address point map is a DenseMap, so sort for stable output.
-    std::map<unsigned, std::vector<Subobject>> points;
-    for (const auto &[base, loc] : VL.getAddressPoints())
-      points[VL.getVTableOffset(loc.VTableIndex) + loc.AddressPointIndex]
-          .push_back({recordName(base.getBase()),
-                      base.getBaseOffset().getQuantity()});
-    for (auto &[index, subs] : points) {
-      std::sort(subs.begin(), subs.end(),
-                [](const Subobject &a, const Subobject &b) {
-                  return std::tie(a.offset, a.type) <
-                         std::tie(b.offset, b.type);
-                });
-      vt.addressPoints.push_back({index, std::move(subs)});
-    }
-    R.vtables.push_back(std::move(vt));
-  }
-
-  void addMicrosoftVTables(Record &R, const CXXRecordDecl *RD) {
-    auto *ctx = dyn_cast<MicrosoftVTableContext>(C.getVTableContext());
-    if (!ctx)
-      return;
-    for (const auto &info : ctx->getVFPtrOffsets(RD)) {
-      const VTableLayout &VL =
-          ctx->getVFTableLayout(RD, info->FullOffsetInMDC);
-      VTable vt;
-      vt.name = vftableName(RD, *info);
-      vt.entries = entries(VL);
-      vt.vfptrOffset = info->FullOffsetInMDC.getQuantity();
-      unsigned slot = 0;
-      while (slot < vt.entries.size() &&
-             vt.entries[slot].kind == EntryKind::RTTI)
-        ++slot;
-      vt.addressPoints.push_back(
-          {slot, {{recordName(RD), *vt.vfptrOffset}}});
-      R.vtables.push_back(std::move(vt));
-    }
   }
 };
 

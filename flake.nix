@@ -1,5 +1,5 @@
 {
-  description = "lense: show the memory layout of C and C++ records and their vtables";
+  description = "lense: show the memory layout of C and C++ records";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
@@ -54,7 +54,7 @@
               runHook postCheck
             '';
             meta = {
-              description = "Show the memory layout of C and C++ records and their vtables";
+              description = "Show the memory layout of C and C++ records";
               mainProgram = "lense";
               platforms = systems;
             };

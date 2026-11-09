@@ -39,11 +39,7 @@
           "offset": 0,
           "size": 8,
           "type": "Box<char>",
-          "align": 8,
-          "points_to": {
-            "table": "vtable for Box<char>",
-            "slot": 2
-          }
+          "align": 8
         },
         {
           "kind": "field",
@@ -57,47 +53,6 @@
           "kind": "padding",
           "offset": 9,
           "size": 7
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vtable for Box<char>",
-          "table_starts": [
-            0
-          ],
-          "address_points": [
-            {
-              "index": 2,
-              "subobjects": [
-                {
-                  "type": "Box<char>",
-                  "offset": 0
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "offset_to_top",
-              "value": 0
-            },
-            {
-              "index": 1,
-              "kind": "rtti",
-              "type": "Box<char>"
-            },
-            {
-              "index": 2,
-              "kind": "complete_dtor",
-              "function": "Box<char>::~Box()"
-            },
-            {
-              "index": 3,
-              "kind": "deleting_dtor",
-              "function": "Box<char>::~Box()"
-            }
-          ]
         }
       ]
     },
@@ -130,11 +85,7 @@
           "offset": 0,
           "size": 8,
           "type": "Box<double>",
-          "align": 8,
-          "points_to": {
-            "table": "vtable for Box<double>",
-            "slot": 2
-          }
+          "align": 8
         },
         {
           "kind": "field",
@@ -143,47 +94,6 @@
           "type": "double",
           "name": "value",
           "align": 8
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vtable for Box<double>",
-          "table_starts": [
-            0
-          ],
-          "address_points": [
-            {
-              "index": 2,
-              "subobjects": [
-                {
-                  "type": "Box<double>",
-                  "offset": 0
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "offset_to_top",
-              "value": 0
-            },
-            {
-              "index": 1,
-              "kind": "rtti",
-              "type": "Box<double>"
-            },
-            {
-              "index": 2,
-              "kind": "complete_dtor",
-              "function": "Box<double>::~Box()"
-            },
-            {
-              "index": 3,
-              "kind": "deleting_dtor",
-              "function": "Box<double>::~Box()"
-            }
-          ]
         }
       ]
     },
@@ -219,8 +129,7 @@
           "name": "items",
           "align": 2
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "ns::Inner",
@@ -270,11 +179,7 @@
               "offset": 0,
               "size": 8,
               "type": "Box<char>",
-              "align": 8,
-              "points_to": {
-                "table": "vtable for Box<char>",
-                "slot": 2
-              }
+              "align": 8
             },
             {
               "kind": "field",
@@ -316,8 +221,7 @@
           "offset": 22,
           "size": 2
         }
-      ],
-      "vtables": []
+      ]
     }
   ]
 }

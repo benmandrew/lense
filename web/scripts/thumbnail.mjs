@@ -30,7 +30,7 @@ struct Circle : Shape {
 // The page state, encoded as main.ts encodes shared links.
 const state = {
   code, lang: 'c++', std: '', target: 'x86_64-linux-gnu', compare: '', cacheLine: 0,
-  vtables: false, expand: false, flags: '',
+  expand: false, flags: '',
 };
 const hash = deflateRawSync(JSON.stringify(state)).toString('base64url');
 
@@ -50,7 +50,7 @@ const css = `
   .cm-activeLine, .cm-activeLineGutter { background: transparent !important; }
   #output { overflow: hidden !important; padding: 12px !important;
             display: flex !important; flex-direction: column !important; justify-content: center !important; }
-  .meta, .traits, .members, .reorder, .vtable { display: none !important; }
+  .meta, .traits, .members, .reorder { display: none !important; }
   .card:not(:last-of-type) { display: none !important; }
   .card { margin: 0 !important; padding: 12px 14px !important; }
   .bytemap { margin-bottom: 0 !important; }

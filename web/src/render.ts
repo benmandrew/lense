@@ -1,9 +1,7 @@
-// Draws a lense report: per record, a byte map, the member table (worded
-// like the CLI's text output) and the vtables. With a second report, draws
-// the two targets side by side instead, as lense --compare does.
-import {
-  bits, type Entry, type LayoutNode, type LayoutRecord, type Report, type Thunk, type VTable,
-} from './types';
+// Draws a lense report: per record, a byte map and the member table (worded
+// like the CLI's text output). With a second report, draws the two targets
+// side by side instead, as lense --compare does.
+import { bits, type LayoutNode, type LayoutRecord, type Report } from './types';
 
 export interface Hooks {
   locate(line: number, column: number): void;
@@ -45,7 +43,6 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 const fmtOffset = (b: number) => (b % 8 ? `${Math.floor(b / 8)}:${b % 8}` : `${b / 8}`);
 const fmtSize = (b: number, inBits: boolean) => (!inBits && b % 8 === 0 ? `${b / 8}` : `${b}b`);
 const fmtAmount = (b: number) => (b % 8 === 0 ? plural(b / 8, 'byte') : `${b} bits`);
-const signed = (n: number) => (n < 0 ? `-${-n}` : `+${n}`);
 
 /** Sizes of bitfields, and of padding that is not whole bytes, are in bits. */
 function fmtSizeOf(n: LayoutNode): string {
@@ -91,7 +88,7 @@ function label(n: LayoutNode, ms: boolean): string {
 }
 
 /** One member line, worded like src/Text.cpp. */
-function describe(parent: HTMLElement, n: LayoutNode, ms: boolean, link?: HTMLElement) {
+function describe(parent: HTMLElement, n: LayoutNode, ms: boolean) {
   switch (n.kind) {
     case 'record':
       if (n.role === 'field' || !n.role) {
@@ -112,10 +109,6 @@ function describe(parent: HTMLElement, n: LayoutNode, ms: boolean, link?: HTMLEl
     case 'vptr':
       span(parent, 'ptr', ms ? 'vfptr' : 'vptr');
       span(parent, 'dim', `  ${n.type ?? ''}`);
-      if (n.points_to) {
-        parent.append('  ');
-        parent.append(link ?? `-> ${n.points_to.table}[${n.points_to.slot}]`);
-      }
       break;
     case 'vbptr':
       span(parent, 'ptr', 'vbptr');
@@ -314,7 +307,6 @@ function legend(all: Leaf[]): HTMLElement {
 
 function members(
   r: LayoutRecord, cats: Map<string, Category>, ms: boolean, cacheLine: number,
-  vtableLink: (n: LayoutNode) => HTMLElement | undefined,
 ): HTMLElement {
   const table = el('table', 'members');
   const head = el('tr');
@@ -354,7 +346,7 @@ function members(
       }
       const cat = cats.get(path);
       td.append(el('span', cat ? `sw cat-${cat}` : 'sw'));
-      describe(td, n, ms, vtableLink(n));
+      describe(td, n, ms);
       const isUnion = n.kind === 'record' && n.tag === 'union';
       notes(td, n);
       tr.append(td);
@@ -373,74 +365,6 @@ function members(
   }
   table.append(body);
   return table;
-}
-
-// --- Vtables --------------------------------------------------------------
-
-function thunkText(t: Thunk): string {
-  let s = `thunk: this ${signed(t.this_adjustment)}`;
-  if (t.vcall_offset_offset) s += `, vcall offset at ${t.vcall_offset_offset}`;
-  else if (t.virtual_this_adjustment) s += ', virtual this adjustment';
-  if (t.return_adjustment) s += `, return ${signed(t.return_adjustment)}`;
-  if (t.vbase_offset_offset) s += `, vbase offset at ${t.vbase_offset_offset}`;
-  else if (t.virtual_return_adjustment) s += ', virtual return adjustment';
-  return s;
-}
-
-function entry(td: HTMLElement, e: Entry, ms: boolean) {
-  const chip = (text: string, cls = '') => span(td, `chip ${cls}`, text);
-  switch (e.kind) {
-    case 'vcall_offset':
-    case 'vbase_offset':
-    case 'offset_to_top':
-      span(td, 'dim', e.kind);
-      td.append(` ${e.value}`);
-      break;
-    case 'rtti':
-      span(td, 'dim', 'RTTI');
-      td.append(` ${e.type}`);
-      break;
-    default:
-      td.append(e.function ?? '');
-      if (e.kind === 'complete_dtor') chip('complete');
-      else if (e.kind === 'deleting_dtor') chip(ms ? 'scalar deleting' : 'deleting');
-      else if (e.kind === 'unused_function') chip('unused');
-      if (e.pure) chip('pure', 'pure');
-  }
-  if (e.thunk) chip(thunkText(e.thunk), 'thunk');
-}
-
-function vtable(vt: VTable, ms: boolean, id: string): HTMLElement {
-  const box = el('div', 'vtable');
-  const h = el('h3', '', vt.name);
-  span(h, 'dim', `  ${vt.vfptr_offset !== undefined ? `vfptr at ${vt.vfptr_offset}, ` : ''}` +
-                 plural(vt.entries.length, 'entry', 'entries'));
-  box.append(h);
-  const table = el('table', 'entries');
-  const points = (index: number) => {
-    for (const ap of vt.address_points) {
-      if (ap.index !== index) continue;
-      const tr = el('tr', 'point');
-      const td = el('td', '', `address point: ${ap.subobjects.map((s) => `${s.type} @${s.offset}`).join(', ')}`);
-      td.colSpan = 2;
-      tr.append(el('td'), td);
-      table.append(tr);
-    }
-  };
-  points(0);
-  vt.entries.forEach((e, i) => {
-    const tr = el('tr');
-    tr.id = `${id}-e${i}`;
-    if (i && vt.table_starts?.includes(i)) tr.classList.add('start');
-    tr.append(el('td', 'num', String(i)));
-    const td = el('td');
-    entry(td, e, ms);
-    tr.append(td);
-    table.append(tr);
-    points(i + 1);
-  });
-  box.append(table);
-  return box;
 }
 
 // --- Records --------------------------------------------------------------
@@ -534,7 +458,7 @@ function linkHover(card: HTMLElement) {
   });
 }
 
-function record(r: LayoutRecord, ri: number, report: Report, hooks: Hooks): HTMLElement {
+function record(r: LayoutRecord, report: Report, hooks: Hooks): HTMLElement {
   const ms = report.abi === 'microsoft';
   const cacheLine = report.cache_line ?? 0;
   const card = el('article', 'card');
@@ -545,26 +469,9 @@ function record(r: LayoutRecord, ri: number, report: Report, hooks: Hooks): HTML
   const all = leaves(r.members, '', false, []);
   if (r.size > 0 && all.length) card.append(legend(all), byteMap(r, all, ms, cacheLine));
 
-  const ids = new Map(r.vtables.map((vt, vi) => [vt.name, `r${ri}-v${vi}`]));
-  const vtableLink = (n: LayoutNode) => {
-    const id = n.points_to && ids.get(n.points_to.table);
-    if (!n.points_to || !id) return undefined;
-    const a = el('a', 'link', `-> ${n.points_to.table}[${n.points_to.slot}]`);
-    a.href = `#${id}-e${n.points_to.slot}`;
-    a.onclick = (ev) => {
-      ev.preventDefault();
-      const row = document.getElementById(`${id}-e${n.points_to!.slot}`);
-      row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      row?.classList.remove('flash');
-      void row?.offsetWidth;
-      row?.classList.add('flash');
-    };
-    return a;
-  };
-  card.append(members(r, new Map(all.map((l) => [l.path, l.cat])), ms, cacheLine, vtableLink));
+  card.append(members(r, new Map(all.map((l) => [l.path, l.cat])), ms, cacheLine));
   const re = reorder(r);
   if (re) card.append(re);
-  r.vtables.forEach((vt, vi) => card.append(vtable(vt, ms, `r${ri}-v${vi}`)));
   linkHover(card);
   return card;
 }
@@ -778,7 +685,7 @@ export function render(out: HTMLElement, report: Report, hooks: Hooks, compare?:
   frag.append(el('p', 'meta', `${meta} · ${plural(report.records.length, 'record')}`));
   if (!report.records.length)
     frag.append(el('p', 'empty', 'No records. Declare a struct, class or union.'));
-  report.records.forEach((r, i) => frag.append(record(r, i, report, hooks)));
+  report.records.forEach((r) => frag.append(record(r, report, hooks)));
   out.append(frag);
 }
 

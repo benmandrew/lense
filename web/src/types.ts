@@ -24,37 +24,7 @@ export interface LayoutNode extends Span {
   crosses_cache_line?: true;
   /** Bitfields only: which memory location (C++ [intro.memory]) it is in. */
   memory_location?: number;
-  points_to?: { table: string; slot: number };
   members?: LayoutNode[];
-}
-
-export interface Thunk {
-  this_adjustment: number;
-  vcall_offset_offset?: number;
-  virtual_this_adjustment?: boolean;
-  return_adjustment?: number;
-  vbase_offset_offset?: number;
-  virtual_return_adjustment?: boolean;
-}
-
-export interface Entry {
-  index: number;
-  kind:
-    | 'vcall_offset' | 'vbase_offset' | 'offset_to_top' | 'rtti' | 'function'
-    | 'complete_dtor' | 'deleting_dtor' | 'unused_function';
-  value?: number;
-  type?: string;
-  function?: string;
-  pure?: boolean;
-  thunk?: Thunk;
-}
-
-export interface VTable {
-  name: string;
-  vfptr_offset?: number;
-  table_starts?: number[];
-  address_points: { index: number; subobjects: { type: string; offset: number }[] }[];
-  entries: Entry[];
 }
 
 export interface AlignSource {
@@ -92,7 +62,6 @@ export interface LayoutRecord {
   reorder?: Reorder;
   holes: Span[];
   members: LayoutNode[];
-  vtables: VTable[];
 }
 
 export interface Report {
@@ -111,12 +80,11 @@ export type AnalyzeResult = { ok: boolean; report: Report; compare?: Report } | 
 export interface Options {
   lang: 'c' | 'c++';
   target: string;
-  vtables: boolean;
   expandSystem: boolean;
   args: string[];
   /** Bytes, a power of two; 0 turns cache-line checks off. */
   cacheLine: number;
-  /** A second target triple to compare with; vtables are off then. */
+  /** A second target triple to compare with. */
   compare?: string;
 }
 

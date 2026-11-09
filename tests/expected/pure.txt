@@ -1,27 +1,11 @@
 struct Shape  size 8, align 8 from vptr
   is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
   offset  size  align
-       0     8      8  vptr  Shape  -> vtable for Shape[2]
-
-vtable for Shape  5 entries
-   0  offset_to_top 0
-   1  RTTI Shape
-      address point: Shape @0
-   2  Shape::~Shape() [complete]
-   3  Shape::~Shape() [deleting]
-   4  double Shape::area() const [pure]
+       0     8      8  vptr  Shape
 
 struct Square  size 16, align 8 from base Shape
   is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
   offset  size  align
        0     8      8  Shape  primary base
-       0     8      8    vptr  Shape  -> vtable for Square[2]
+       0     8      8    vptr  Shape
        8     8      8  double side
-
-vtable for Square  5 entries
-   0  offset_to_top 0
-   1  RTTI Square
-      address point: Shape @0, Square @0
-   2  Square::~Square() [complete]
-   3  Square::~Square() [deleting]
-   4  double Square::area() const

@@ -34,46 +34,7 @@
           "offset": 0,
           "size": 8,
           "type": "Shape",
-          "align": 8,
-          "points_to": {
-            "table": "vftable for Shape",
-            "slot": 1
-          }
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vftable for Shape",
-          "vfptr_offset": 0,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "Shape",
-                  "offset": 0
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "Shape"
-            },
-            {
-              "index": 1,
-              "kind": "deleting_dtor",
-              "function": "Shape::~Shape()"
-            },
-            {
-              "index": 2,
-              "kind": "function",
-              "function": "double Shape::area() const",
-              "pure": true
-            }
-          ]
+          "align": 8
         }
       ]
     },
@@ -115,11 +76,7 @@
               "offset": 0,
               "size": 8,
               "type": "Shape",
-              "align": 8,
-              "points_to": {
-                "table": "vftable for Shape in Square",
-                "slot": 1
-              }
+              "align": 8
             }
           ]
         },
@@ -130,40 +87,6 @@
           "type": "double",
           "name": "side",
           "align": 8
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vftable for Shape in Square",
-          "vfptr_offset": 0,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "Square",
-                  "offset": 0
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "Square"
-            },
-            {
-              "index": 1,
-              "kind": "deleting_dtor",
-              "function": "Square::~Square()"
-            },
-            {
-              "index": 2,
-              "kind": "function",
-              "function": "double Square::area() const"
-            }
-          ]
         }
       ]
     }

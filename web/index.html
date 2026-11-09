@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>lense</title>
-  <meta name="description" content="C and C++ record layouts and vtables, computed by clang in the browser">
+  <meta name="description" content="C and C++ record layouts, computed by clang in the browser">
   <!-- The PNGs are rendered from favicon.svg:
        rsvg-convert -w 32 favicon.svg -o favicon.png
        sed 's/ rx="6"//' favicon.svg | rsvg-convert -w 180 -o apple-touch-icon.png -->
@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <!-- og.png comes from `npm run thumbnail`. -->
   <meta property="og:title" content="lense">
-  <meta property="og:description" content="C and C++ record layouts and vtables, computed by clang in the browser">
+  <meta property="og:description" content="C and C++ record layouts, computed by clang in the browser">
   <meta property="og:type" content="website">
   <meta property="og:image" content="og.png">
   <meta property="og:image:width" content="1200">
@@ -56,7 +56,6 @@
         <option value="128">128 bytes</option>
       </select>
     </label>
-    <label class="check"><input type="checkbox" id="vtables"> vtables</label>
     <label class="check"><input type="checkbox" id="expand"> expand system types</label>
     <label class="grow">Flags <input id="flags" spellcheck="false" placeholder="-DN=4 -fms-extensions"></label>
     <span id="status" role="status" aria-live="polite"></span>

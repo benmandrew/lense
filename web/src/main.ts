@@ -49,7 +49,6 @@ interface Saved {
   compare: string;
   /** Bytes; 0 is off. */
   cacheLine: number;
-  vtables: boolean;
   expand: boolean;
   flags: string;
 }
@@ -61,7 +60,6 @@ const stdBox = $<HTMLSelectElement>('std');
 const targetBox = $<HTMLSelectElement>('target');
 const compareBox = $<HTMLSelectElement>('compare');
 const cacheLineBox = $<HTMLSelectElement>('cacheline');
-const vtablesBox = $<HTMLInputElement>('vtables');
 const expandBox = $<HTMLInputElement>('expand');
 const flagsBox = $<HTMLInputElement>('flags');
 const statusBox = $<HTMLSpanElement>('status');
@@ -105,7 +103,6 @@ function current(): Saved {
     target: targetBox.value,
     compare: compareBox.value,
     cacheLine: Number(cacheLineBox.value),
-    vtables: vtablesBox.checked,
     expand: expandBox.checked,
     flags: flagsBox.value,
   };
@@ -115,7 +112,7 @@ function options(s: Saved): Options {
   const args = s.flags.split(/\s+/).filter(Boolean);
   if (s.std) args.unshift(`-std=${s.std}`);
   return {
-    lang: s.lang, target: s.target, vtables: s.vtables, expandSystem: s.expand, args,
+    lang: s.lang, target: s.target, expandSystem: s.expand, args,
     cacheLine: s.cacheLine, ...(s.compare ? { compare: s.compare } : {}),
   };
 }
@@ -301,7 +298,7 @@ async function start() {
   // Links saved before an option existed leave it out.
   const s: Saved = {
     code: SAMPLE, lang: 'c++', std: '', target: 'x86_64-linux-gnu', compare: '', cacheLine: 64,
-    vtables: false, expand: false, flags: '', ...saved,
+    expand: false, flags: '', ...saved,
   };
   view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: s.code } });
   clearTimeout(timer);
@@ -315,13 +312,6 @@ async function start() {
   cacheLineBox.value = String(s.cacheLine);
   if (cacheLineBox.value !== String(s.cacheLine))
     cacheLineBox.append(new Option(`${s.cacheLine} bytes`, String(s.cacheLine), true, true));
-  vtablesBox.checked = s.vtables;
-  // lense --compare leaves vtables out.
-  const syncVtables = () => {
-    vtablesBox.disabled = !!compareBox.value;
-    vtablesBox.parentElement!.title = compareBox.value ? 'Not shown when comparing targets' : '';
-  };
-  syncVtables();
   expandBox.checked = s.expand;
   flagsBox.value = s.flags;
 
@@ -345,11 +335,7 @@ async function start() {
     fillStandards(langBox.value as Options['lang'], '');
     analyze();
   };
-  for (const box of [stdBox, targetBox, cacheLineBox, vtablesBox, expandBox]) box.onchange = analyze;
-  compareBox.onchange = () => {
-    syncVtables();
-    analyze();
-  };
+  for (const box of [stdBox, targetBox, compareBox, cacheLineBox, expandBox]) box.onchange = analyze;
   flagsBox.oninput = () => {
     clearTimeout(timer);
     timer = setTimeout(analyze, 400);

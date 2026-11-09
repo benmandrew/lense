@@ -58,8 +58,7 @@
           "name": "value",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "padded_t",
@@ -136,8 +135,7 @@
           "offset": 17,
           "size": 7
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "flex",
@@ -174,8 +172,7 @@
           "name": "data",
           "align": 1
         }
-      ],
-      "vtables": []
+      ]
     }
   ]
 }

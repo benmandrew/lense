@@ -1,4 +1,4 @@
-// lense: show the memory layout of C and C++ records and their vtables.
+// lense: show the memory layout of C and C++ records.
 #include "Json.h"
 #include "Run.h"
 #include "Text.h"
@@ -20,10 +20,6 @@ static cl::opt<std::string> input(cl::Positional, cl::desc("<file | ->"),
                                   cl::Required, cl::cat(category));
 static cl::opt<bool> json("json", cl::desc("Print JSON instead of text"),
                           cl::cat(category));
-static cl::opt<bool> vtables("vtables",
-                             cl::desc("Also print vtable layouts and the slot "
-                                      "each vptr points at"),
-                             cl::cat(category));
 static cl::opt<bool>
     expandSystem("expand-system",
                  cl::desc("Expand members whose type is from a system header"),
@@ -70,7 +66,7 @@ int main(int argc, char **argv) {
       [](llvm::raw_ostream &os) { os << "lense 0.1.0 (LLVM " LLVM_VERSION_STRING ")\n"; });
   cl::ParseCommandLineOptions(
       ownArgc, argv,
-      "Show the memory layout of C and C++ records and their vtables.\n\n"
+      "Show the memory layout of C and C++ records.\n\n"
       "  lense [options] <file | -> [-- <clang arguments>]\n");
 
   if (lang != "c" && lang != "c++") {
@@ -101,7 +97,6 @@ int main(int argc, char **argv) {
 
   lense::RunOptions opts;
   opts.analyze.cacheLine = cacheLine;
-  opts.analyze.vtables = vtables && compare.empty();
   opts.analyze.expandSystem = expandSystem;
   opts.analyze.source = source;
   opts.analyze.records.assign(records.begin(), records.end());

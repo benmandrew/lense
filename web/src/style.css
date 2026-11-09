@@ -90,8 +90,6 @@
   --hl-bg: #33291f;
   --active-line: #23201c;
   --selection: #33291f;
-  --link: #d08949;
-  --link-hover: #ebc587;
   --on-fill: #141414;
   --c-field: #579dcd;
   --c-base: #6da361;
@@ -335,7 +333,7 @@ td .sw:not([class*="cat-"]) { visibility: hidden; }
   text-overflow: ellipsis;
 }
 
-/* --- Member and vtable tables ------------------------------------------- */
+/* --- Member table ------------------------------------------------------- */
 
 table { border-collapse: collapse; font: 12.5px/1.6 var(--mono); }
 .members { width: 100%; }
@@ -362,21 +360,6 @@ td.desc.in-union { background-repeat: no-repeat; background-size: 2px 100%; }
 .dim { color: var(--ink-2); }
 .ptr { font-weight: 600; }
 .pad { color: var(--ink-2); font-style: italic; }
-.link { color: var(--link); text-decoration: underline dotted; text-underline-offset: 3px; }
-.link:hover { color: var(--link-hover); text-decoration-style: solid; }
-
-.vtable { margin-top: 16px; }
-.vtable h3 { margin: 0 0 4px; font: 600 13px var(--mono); }
-.vtable h3 .dim { font-weight: 400; }
-.entries td { white-space: pre-wrap; }
-.entries tr.start td { padding-top: 10px; }
-.entries tr.point td:last-child {
-  padding-left: 8px;
-  border-left: 2px solid var(--c-ptr);
-  color: var(--ink-2);
-}
-.entries tr.flash td { animation: flash 1.4s ease-out; }
-@keyframes flash { from { background: var(--selection); } }
 
 .chip {
   display: inline-block;
@@ -388,7 +371,7 @@ td.desc.in-union { background-repeat: no-repeat; background-size: 2px 100%; }
   font-size: 11px;
   line-height: 1.5;
 }
-.chip.pure, .chip.bad { color: var(--critical); border-color: currentColor; }
+.chip.bad { color: var(--critical); border-color: currentColor; }
 .chip.warn {
   color: var(--ink-2);
   border-color: var(--warning);

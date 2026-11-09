@@ -39,11 +39,7 @@
           "offset": 0,
           "size": 8,
           "type": "A",
-          "align": 8,
-          "points_to": {
-            "table": "vftable for A",
-            "slot": 1
-          }
+          "align": 8
         },
         {
           "kind": "field",
@@ -57,35 +53,6 @@
           "kind": "padding",
           "offset": 12,
           "size": 4
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vftable for A",
-          "vfptr_offset": 0,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "A",
-                  "offset": 0
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "A"
-            },
-            {
-              "index": 1,
-              "kind": "function",
-              "function": "void A::f()"
-            }
-          ]
         }
       ]
     },
@@ -163,11 +130,7 @@
               "offset": 24,
               "size": 8,
               "type": "A",
-              "align": 8,
-              "points_to": {
-                "table": "vftable for A in B",
-                "slot": 1
-              }
+              "align": 8
             },
             {
               "kind": "field",
@@ -181,39 +144,6 @@
               "kind": "padding",
               "offset": 36,
               "size": 4
-            }
-          ]
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vftable for A in B",
-          "vfptr_offset": 24,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "B",
-                  "offset": 24
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "B"
-            },
-            {
-              "index": 1,
-              "kind": "function",
-              "function": "void B::f()",
-              "thunk": {
-                "this_adjustment": 0,
-                "virtual_this_adjustment": true
-              }
             }
           ]
         }

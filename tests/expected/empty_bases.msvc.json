@@ -38,8 +38,7 @@
           "offset": 0,
           "size": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Tag",
@@ -74,8 +73,7 @@
           "offset": 0,
           "size": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "WithEmptyBase",
@@ -120,8 +118,7 @@
           "name": "x",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "TwoEmpty",
@@ -186,8 +183,7 @@
           "name": "c",
           "align": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "NoUnique",
@@ -243,8 +239,7 @@
           "name": "x",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Holder",
@@ -300,8 +295,7 @@
           "name": "x",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     }
   ]
 }

@@ -45,8 +45,7 @@
           "name": "y",
           "align": 2
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Value",
@@ -96,8 +95,7 @@
           "name": "d",
           "align": 8
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Packet",
@@ -249,8 +247,7 @@
             }
           ]
         }
-      ],
-      "vtables": []
+      ]
     }
   ]
 }

@@ -34,6 +34,15 @@ def records(stdout: str) -> dict:
     return {r["name"]: r for r in json.loads(stdout)["records"]}
 
 
+def vptr_offsets(members: list) -> list:
+    out = []
+    for n in members:
+        if n["kind"] == "vptr":
+            out.append(n["offset"])
+        out.extend(vptr_offsets(n.get("members", [])))
+    return out
+
+
 class Cli(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -53,8 +62,7 @@ class Cli(unittest.TestCase):
     def test_help_lists_options(self):
         r = lense("--help")
         self.assertEqual(r.returncode, 0)
-        for opt in ("--json", "--target", "--record", "--vtables",
-                    "--expand-system", "--source", "--lang", "--color",
+        for opt in ("--json", "--target", "--record", "--expand-system", "--source", "--lang", "--color",
                     "--compare", "--cache-line"):
             self.assertIn(opt, r.stdout)
 
@@ -111,19 +119,16 @@ class Cli(unittest.TestCase):
                   stdin="namespace a { namespace b { struct S { int x; }; } }")
         self.assertEqual(set(records(r.stdout)), {"a::b::S"})
 
-    def test_vtables_only_when_asked(self):
+    def test_vptrs_without_vtables(self):
         path = self.write("t.cpp", DERIVED)
         d = records(lense("--json", LINUX, path).stdout)["Derived"]
-        self.assertEqual(d["vtables"], [])
+        self.assertNotIn("vtables", d)
         self.assertNotIn("points_to", json.dumps(d))
+        self.assertEqual(vptr_offsets(d["members"]), [0, 16])
         text = lense("--color=false", LINUX, path).stdout
         self.assertNotIn("vtable for", text)
         self.assertIn("vptr", text)
-        d = records(lense("--json", LINUX, "--vtables", path).stdout)["Derived"]
-        self.assertEqual(len(d["vtables"]), 1)
-        self.assertIn("points_to", json.dumps(d))
-        text = lense("--color=false", LINUX, "--vtables", path).stdout
-        self.assertIn("vtable for Derived", text)
+        self.assertNotEqual(lense("--vtables", path).returncode, 0)
 
     def test_source_above_each_record(self):
         path = self.write("t.cpp", "// Two records.\n"
@@ -178,12 +183,12 @@ void f() {
     def test_target_switches_abi(self):
         path = self.write("t.cpp", DERIVED)
         itanium = json.loads(lense("--json", LINUX, path).stdout)
-        msvc = json.loads(lense("--json", "--vtables", MSVC, path).stdout)
+        msvc = json.loads(lense("--json", MSVC, path).stdout)
         self.assertEqual(itanium["abi"], "itanium")
         self.assertEqual(itanium["target"], "x86_64-unknown-linux-gnu")
         self.assertEqual(msvc["abi"], "microsoft")
         msvc_derived = {r["name"]: r for r in msvc["records"]}["Derived"]
-        self.assertEqual(len(msvc_derived["vtables"]), 2)
+        self.assertEqual(vptr_offsets(msvc_derived["members"]), [0, 16])
         self.assertEqual(json.loads(lense("--json", "--target=i686-linux-gnu", path).stdout)
                          ["pointer_size"], 4)
 
@@ -442,13 +447,6 @@ void f() {
         for line in headers:
             name = line.split()[1]
             self.assertIn(f"size {recs[name]['size']}, align {recs[name]['align']}", line)
-
-    def test_vptr_names_slot(self):
-        path = self.write("t.cpp", DERIVED)
-        text = lense("--color=false", LINUX, "--vtables", "--record=Derived",
-                     path).stdout
-        self.assertIn("-> vtable for Derived[2]", text)
-        self.assertIn("-> vtable for Derived[7]", text)
 
 
 if __name__ == "__main__":

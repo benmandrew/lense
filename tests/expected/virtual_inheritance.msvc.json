@@ -39,11 +39,7 @@
           "offset": 0,
           "size": 8,
           "type": "A",
-          "align": 8,
-          "points_to": {
-            "table": "vftable for A",
-            "slot": 1
-          }
+          "align": 8
         },
         {
           "kind": "field",
@@ -57,40 +53,6 @@
           "kind": "padding",
           "offset": 12,
           "size": 4
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vftable for A",
-          "vfptr_offset": 0,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "A",
-                  "offset": 0
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "A"
-            },
-            {
-              "index": 1,
-              "kind": "deleting_dtor",
-              "function": "A::~A()"
-            },
-            {
-              "index": 2,
-              "kind": "function",
-              "function": "A *A::clone() const"
-            }
-          ]
         }
       ]
     },
@@ -132,11 +94,7 @@
           "offset": 0,
           "size": 8,
           "type": "B",
-          "align": 8,
-          "points_to": {
-            "table": "vftable for B",
-            "slot": 1
-          }
+          "align": 8
         },
         {
           "kind": "vbptr",
@@ -172,11 +130,7 @@
               "offset": 24,
               "size": 8,
               "type": "A",
-              "align": 8,
-              "points_to": {
-                "table": "vftable for A in B",
-                "slot": 1
-              }
+              "align": 8
             },
             {
               "kind": "field",
@@ -190,67 +144,6 @@
               "kind": "padding",
               "offset": 36,
               "size": 4
-            }
-          ]
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vftable for B",
-          "vfptr_offset": 0,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "B",
-                  "offset": 0
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "B"
-            },
-            {
-              "index": 1,
-              "kind": "function",
-              "function": "void B::g()"
-            }
-          ]
-        },
-        {
-          "name": "vftable for A in B",
-          "vfptr_offset": 24,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "B",
-                  "offset": 24
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "B"
-            },
-            {
-              "index": 1,
-              "kind": "deleting_dtor",
-              "function": "B::~B()"
-            },
-            {
-              "index": 2,
-              "kind": "function",
-              "function": "A *A::clone() const"
             }
           ]
         }
@@ -323,11 +216,7 @@
               "offset": 16,
               "size": 8,
               "type": "A",
-              "align": 8,
-              "points_to": {
-                "table": "vftable for A in C",
-                "slot": 1
-              }
+              "align": 8
             },
             {
               "kind": "field",
@@ -341,49 +230,6 @@
               "kind": "padding",
               "offset": 28,
               "size": 4
-            }
-          ]
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vftable for A in C",
-          "vfptr_offset": 16,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "C",
-                  "offset": 16
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "C"
-            },
-            {
-              "index": 1,
-              "kind": "deleting_dtor",
-              "function": "C::~C()"
-            },
-            {
-              "index": 2,
-              "kind": "function",
-              "function": "C *C::clone() const",
-              "thunk": {
-                "this_adjustment": 0,
-                "virtual_return_adjustment": true
-              }
-            },
-            {
-              "index": 3,
-              "kind": "function",
-              "function": "C *C::clone() const"
             }
           ]
         }
@@ -444,11 +290,7 @@
               "offset": 0,
               "size": 8,
               "type": "B",
-              "align": 8,
-              "points_to": {
-                "table": "vftable for B in D",
-                "slot": 1
-              }
+              "align": 8
             },
             {
               "kind": "vbptr",
@@ -530,11 +372,7 @@
               "offset": 48,
               "size": 8,
               "type": "A",
-              "align": 8,
-              "points_to": {
-                "table": "vftable for A in C in D",
-                "slot": 1
-              }
+              "align": 8
             },
             {
               "kind": "field",
@@ -548,85 +386,6 @@
               "kind": "padding",
               "offset": 60,
               "size": 4
-            }
-          ]
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vftable for B in D",
-          "vfptr_offset": 0,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "D",
-                  "offset": 0
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "D"
-            },
-            {
-              "index": 1,
-              "kind": "function",
-              "function": "void D::g()"
-            }
-          ]
-        },
-        {
-          "name": "vftable for A in C in D",
-          "vfptr_offset": 48,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "D",
-                  "offset": 48
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "D"
-            },
-            {
-              "index": 1,
-              "kind": "deleting_dtor",
-              "function": "D::~D()"
-            },
-            {
-              "index": 2,
-              "kind": "function",
-              "function": "D *D::clone() const",
-              "thunk": {
-                "this_adjustment": 0,
-                "virtual_return_adjustment": true
-              }
-            },
-            {
-              "index": 3,
-              "kind": "function",
-              "function": "D *D::clone() const",
-              "thunk": {
-                "this_adjustment": 0,
-                "return_adjustment": 24
-              }
-            },
-            {
-              "index": 4,
-              "kind": "function",
-              "function": "D *D::clone() const"
             }
           ]
         }

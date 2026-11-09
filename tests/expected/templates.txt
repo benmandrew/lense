@@ -1,29 +1,15 @@
 struct Box<char>  size 16, align 8 from vptr, data size 9, padding 7 bytes
   is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
   offset  size  align
-       0     8      8  vptr  Box<char>  -> vtable for Box<char>[2]
+       0     8      8  vptr  Box<char>
        8     1      1  char value
        9     7         padding
-
-vtable for Box<char>  4 entries
-   0  offset_to_top 0
-   1  RTTI Box<char>
-      address point: Box<char> @0
-   2  Box<char>::~Box() [complete]
-   3  Box<char>::~Box() [deleting]
 
 struct Box<double>  size 16, align 8 from vptr
   is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
   offset  size  align
-       0     8      8  vptr  Box<double>  -> vtable for Box<double>[2]
+       0     8      8  vptr  Box<double>
        8     8      8  double value
-
-vtable for Box<double>  4 entries
-   0  offset_to_top 0
-   1  RTTI Box<double>
-      address point: Box<double> @0
-   2  Box<double>::~Box() [complete]
-   3  Box<double>::~Box() [deleting]
 
 struct Array<short, 3>  size 6, align 2 from items
   is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes
@@ -34,7 +20,7 @@ struct ns::Inner  size 24, align 8 from b, data size 22, padding 9 bytes
   is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
   offset  size  align
        0    16      8  Box<char> b
-       0     8      8    vptr  Box<char>  -> vtable for Box<char>[2]
+       0     8      8    vptr  Box<char>
        8     1      1    char value
        9     7           padding
       16     6      2  Array<short, 3> a

@@ -172,7 +172,7 @@ def check_extras(r: dict, err) -> None:
         err("reorder moves the flexible array member")
 
 
-def check_record(r: dict, abi: str, cache_line: int = 0) -> List[str]:
+def check_record(r: dict, cache_line: int = 0) -> List[str]:
     errs: List[str] = []
     name = r["name"]
     size_bits = r["size"] * 8
@@ -234,70 +234,6 @@ def check_record(r: dict, abi: str, cache_line: int = 0) -> List[str]:
     nest({"kind": "record", "type": name, "offset": 0, "size": r["size"],
           "members": r["members"]})
 
-    # Vtables are well formed.
-    tables = {t["name"]: t for t in r["vtables"]}
-    for t in r["vtables"]:
-        entries = t["entries"]
-        if [e["index"] for e in entries] != list(range(len(entries))):
-            err(f"{t['name']}: entry indices are not 0..n-1")
-        starts = t.get("table_starts", [])
-        if starts and (starts[0] != 0 or starts != sorted(set(starts))):
-            err(f"{t['name']}: bad table starts {starts}")
-        for ap in t["address_points"]:
-            i = ap["index"]
-            if not 0 <= i <= len(entries):
-                err(f"{t['name']}: address point {i} out of range")
-                continue
-            if abi == "itanium":
-                # [offset_to_top, RTTI] sit just before every address point.
-                if i < 2 or entries[i - 1]["kind"] != "rtti" or \
-                        entries[i - 2]["kind"] != "offset_to_top":
-                    err(f"{t['name']}: no offset_to_top/RTTI before {i}")
-                    continue
-                for sub in ap["subobjects"]:
-                    if entries[i - 2]["value"] != -sub["offset"]:
-                        err(f"{t['name']}: offset_to_top at {i - 2} is "
-                            f"{entries[i - 2]['value']}, subobject {sub['type']} "
-                            f"is at {sub['offset']}")
-        if abi == "itanium":
-            # An address point belongs to the table holding the RTTI entry
-            # just before it; it may equal the next table's start.
-            for k in range(len(starts)):
-                end = starts[k + 1] if k + 1 < len(starts) else len(entries)
-                n = sum(1 for ap in t["address_points"]
-                        if starts[k] <= ap["index"] - 1 < end)
-                if n != 1:
-                    err(f"{t['name']}: table at {starts[k]} has {n} address points")
-
-    # Vptrs of the record itself point at one of its address points, keyed by
-    # the subobject that owns the vptr.
-    def vptrs(members: List[dict], in_field: bool) -> Iterator[Tuple[dict, bool]]:
-        for n in members:
-            if n["kind"] == "vptr":
-                yield n, in_field
-            elif n["kind"] == "record":
-                yield from vptrs(n["members"], in_field or n["role"] == "field")
-    for v, in_field in vptrs(r["members"], False):
-        pt = v.get("points_to")
-        if in_field or pt is None:
-            continue
-        t = tables.get(pt["table"])
-        if t is None:
-            err(f"vptr at {v['offset']} points at unknown table {pt['table']}")
-            continue
-        ap = [a for a in t["address_points"] if a["index"] == pt["slot"]]
-        if not ap:
-            err(f"vptr at {v['offset']} points at slot {pt['slot']}, "
-                f"which is not an address point")
-        elif abi == "itanium" and not any(
-                s["type"] == v["type"] and s["offset"] == v["offset"]
-                for s in ap[0]["subobjects"]):
-            err(f"vptr of {v['type']} at {v['offset']} is not a subobject of "
-                f"its address point")
-        elif abi == "microsoft" and t.get("vfptr_offset") != v["offset"]:
-            err(f"vfptr at {v['offset']} points at a table for offset "
-                f"{t.get('vfptr_offset')}")
-
     check_annotations(r, cache_line, err)
     check_extras(r, err)
     return errs
@@ -316,5 +252,5 @@ def check_report(report: dict) -> List[str]:
     if len(set(names)) != len(names):
         errs.append(f"duplicate records in {names}")
     for r in report["records"]:
-        errs.extend(check_record(r, report["abi"], cache_line))
+        errs.extend(check_record(r, cache_line))
     return errs

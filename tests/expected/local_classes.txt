@@ -11,13 +11,7 @@ struct f()::S  size 4, align 4 from a
 struct T0  size 8, align 8 from vptr
   is_standard_layout no, is_trivially_copyable no, has_unique_object_representations no
   offset  size  align
-       0     8      8  vptr  T0  -> vtable for T0[2]
-
-vtable for T0  3 entries
-   0  offset_to_top 0
-   1  RTTI T0
-      address point: T0 @0
-   2  int T0::m1()
+       0     8      8  vptr  T0
 
 struct T0::m1()::T0  size 1, align 1
   is_standard_layout yes, is_trivially_copyable yes, has_unique_object_representations yes

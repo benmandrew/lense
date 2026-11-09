@@ -111,8 +111,7 @@ class Fuzzer:
             return subprocess.CompletedProcess(cmd, -999, "", "timed out")
 
     def lense(self, path: str, cwd: str, *flags: str) -> subprocess.CompletedProcess:
-        # Every check needs the vtables, which lense leaves out by default.
-        return self.run([self.args.lense, "--vtables", *flags, path], cwd)
+        return self.run([self.args.lense, *flags, path], cwd)
 
     @staticmethod
     def crashed(p: subprocess.CompletedProcess) -> Optional[str]:

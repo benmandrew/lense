@@ -6,9 +6,9 @@ The checker is the generated program plus a main() that, for each record:
 - builds an object in zeroed storage and compares the address of every base
   subobject and field with the reported offset;
 - assigns -1 to every named bitfield and checks which bits changed;
-- reads every vtable pointer and checks the whole vtable group relative to the
-  reported address point: offsets, RTTI pointers, and function slots, which it
-  calls (through any thunk) to check the final overrider and its `this`.
+- reads every vtable pointer and checks that the table it points at belongs
+  to the complete object (its RTTI) and to the vptr's subobject (its
+  offset-to-top).
 
 batch_checker() puts several of these checks into one program, each case in its
 own namespace, so that one build serves many cases. macOS checks every new
@@ -28,7 +28,6 @@ available, so it uses the compiler builtins that <type_traits> is built on.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -63,7 +62,6 @@ static void lense_diff(const unsigned char *a, const unsigned char *b,
   *count = c;
   *span = lo < 0 ? 0 : hi - lo + 1;
 }
-typedef int (*lense_fn)(const void *);
 static long long lense_max(long long a, long long b) { return a > b ? a : b; }
 """
 
@@ -118,9 +116,6 @@ def direct_fields(r: dict, extra: Optional[Extra]):
             yield n["name"], aligns[n["name"]], n["align"]
 
 
-FUNC_RE = re.compile(r"\bT(\d+)::m(\d+)\(")
-
-
 def cstr(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -159,7 +154,7 @@ class Checker:
         self.emit(f"{name} *p = ::new (static_cast<void *>({buf})) {name};")
         self.emit("const char *b = reinterpret_cast<const char *>(p);")
         self.emit("(void)b;")
-        ctx = ("(*p)", 0, "vtable for " + name)
+        ctx = (0, name)
         for m in r["members"]:
             self.node(m, "(*p)", name, ctx, buf)
         self.lines.append("  }")
@@ -172,7 +167,7 @@ class Checker:
             if role == "field":
                 expr = f"({parent}).{n['name']}"
                 where = f"{label}.{n['name']}"
-                child_ctx = (expr, off, "vtable for " + n["type"])
+                child_ctx = (off, n["type"])
             else:
                 expr = f"static_cast<{n['type']} &>({parent})"
                 where = f"{label}::{n['type']}"
@@ -205,65 +200,20 @@ class Checker:
             self.vptr(n, label, ctx)
 
     def vptr(self, n: dict, label: str, ctx) -> None:
-        _, coff, ctable = ctx
+        # Itanium: a vptr sits at the start of its subobject and points just
+        # past [offset_to_top, RTTI] of a table in the complete object's group.
+        coff, complete = ctx
+        if complete not in self.records:
+            return
         where = f"vptr of {n['type']} at {label}+{n['offset']}"
-        pt = n.get("points_to")
-        if pt is None:
-            return
-        # A vptr points into the vtable of the complete object that holds it.
-        self.check(f"{where} names the complete object's vtable",
-                   str(int(pt["table"] == ctable)), 1)
-        owner = self.records.get(ctable[len("vtable for "):])
-        if owner is None:
-            return
-        tables = [t for t in owner["vtables"] if t["name"] == pt["table"]]
-        if not tables:
-            return
-        vt = tables[0]
-        slot = pt["slot"]
-        starts = vt["table_starts"] or [0]
-        points = {ap["index"]: ap for ap in vt["address_points"]}
-
-        def subtable_this(j: int) -> Optional[int]:
-            begin = max(s for s in starts if s <= j)
-            later = [s for s in starts if s > j]
-            end = min(later) if later else len(vt["entries"])
-            for idx, ap in points.items():
-                if begin <= idx - 1 < end:  # The RTTI entry is in this table.
-                    return ap["subobjects"][0]["offset"]
-            return None
-
         self.emit("{")
         self.emit(f"  const void *const *V = *reinterpret_cast<const void *const "
                   f"*const *>(b + {n['offset']});")
-        for e in vt["entries"]:
-            j = e["index"]
-            rel = j - slot
-            what = f"{where}: {vt['name']}[{j}] ({e['kind']})"
-            k = e["kind"]
-            if k in ("offset_to_top", "vcall_offset", "vbase_offset"):
-                self.emit(f"  lense_check({cstr(what)}, (long long)"
-                          f"reinterpret_cast<const std::ptrdiff_t *>(V)[{rel}], "
-                          f"{e['value']}LL);")
-            elif k == "rtti":
-                self.emit(f"  lense_check({cstr(what)}, V[{rel}] == "
-                          f"static_cast<const void *>(&typeid({e['type']})), 1LL);")
-            elif k in ("complete_dtor", "deleting_dtor"):
-                self.emit(f"  lense_check({cstr(what + ' is set')}, "
-                          f"V[{rel}] != nullptr, 1LL);")
-            elif k == "function":
-                m = FUNC_RE.search(e["function"])
-                sub = subtable_this(j)
-                if not m or sub is None:
-                    continue
-                want = 1000 * int(m.group(1)) + int(m.group(2))
-                self.emit("  {")
-                self.emit("    lense_top = nullptr;")
-                self.emit(f"    int got = ((lense_fn)V[{rel}])(b + {coff + sub});")
-                self.emit(f"    lense_check({cstr(what + ' calls')}, got, {want}LL);")
-                self.emit(f"    lense_check({cstr(what + ' this')}, "
-                          f"reinterpret_cast<const char *>(lense_top) - b, {coff}LL);")
-                self.emit("  }")
+        self.emit(f"  lense_check({cstr(where + ': RTTI')}, V[-1] == "
+                  f"static_cast<const void *>(&typeid({complete})), 1LL);")
+        self.emit(f"  lense_check({cstr(where + ': offset_to_top')}, (long long)"
+                  f"reinterpret_cast<const std::ptrdiff_t *>(V)[-2], "
+                  f"{coff - n['offset']}LL);")
         self.emit("}")
 
     def body(self) -> List[str]:

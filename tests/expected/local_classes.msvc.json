@@ -37,8 +37,7 @@
           "name": "b",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "f()::S",
@@ -72,8 +71,7 @@
           "name": "a",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "T0",
@@ -104,40 +102,7 @@
           "offset": 0,
           "size": 8,
           "type": "T0",
-          "align": 8,
-          "points_to": {
-            "table": "vftable for T0",
-            "slot": 1
-          }
-        }
-      ],
-      "vtables": [
-        {
-          "name": "vftable for T0",
-          "vfptr_offset": 0,
-          "address_points": [
-            {
-              "index": 1,
-              "subobjects": [
-                {
-                  "type": "T0",
-                  "offset": 0
-                }
-              ]
-            }
-          ],
-          "entries": [
-            {
-              "index": 0,
-              "kind": "rtti",
-              "type": "T0"
-            },
-            {
-              "index": 1,
-              "kind": "function",
-              "function": "int T0::m1()"
-            }
-          ]
+          "align": 8
         }
       ]
     },
@@ -172,8 +137,7 @@
           "name": "c",
           "align": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "h<1>()::S",
@@ -218,8 +182,7 @@
             }
           ]
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "h<1>()::S::In",
@@ -252,8 +215,7 @@
           "name": "c",
           "align": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "h<2>()::S",
@@ -298,8 +260,7 @@
             }
           ]
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "h<2>()::S::In",
@@ -332,8 +293,7 @@
           "name": "c",
           "align": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "(lambda at 16:11)::operator()()::L",
@@ -367,8 +327,7 @@
           "name": "s",
           "align": 2
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "(lambda at 17:11)::operator()()::L",
@@ -402,8 +361,7 @@
           "name": "i",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Q",
@@ -438,8 +396,7 @@
           "offset": 0,
           "size": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Q::M",
@@ -474,8 +431,7 @@
           "offset": 0,
           "size": 1
         }
-      ],
-      "vtables": []
+      ]
     },
     {
       "name": "Q::M::k(double)::K",
@@ -509,8 +465,7 @@
           "name": "z",
           "align": 4
         }
-      ],
-      "vtables": []
+      ]
     }
   ]
 }

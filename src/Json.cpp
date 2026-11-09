@@ -43,24 +43,6 @@ const char *alignSourceName(AlignSource s) {
   return "";
 }
 
-const char *entryName(EntryKind k) {
-  switch (k) {
-  case EntryKind::VCallOffset: return "vcall_offset";
-  case EntryKind::VBaseOffset: return "vbase_offset";
-  case EntryKind::OffsetToTop: return "offset_to_top";
-  case EntryKind::RTTI: return "rtti";
-  case EntryKind::Function: return "function";
-  case EntryKind::CompleteDtor: return "complete_dtor";
-  case EntryKind::DeletingDtor: return "deleting_dtor";
-  case EntryKind::UnusedFunction: return "unused_function";
-  }
-  return "";
-}
-
-// json::OStream checks every string for valid UTF-8 and escapes it a byte
-// at a time. Names and types are almost always printable ASCII without
-// quotes or backslashes, which need neither, so write those directly. The
-// output is the same either way.
 void attr(llvm::json::OStream &J, llvm::StringRef key, llvm::StringRef s) {
   bool plain = llvm::all_of(s, [](unsigned char c) {
     return c >= 0x20 && c < 0x80 && c != '"' && c != '\\';
@@ -109,80 +91,11 @@ void node(llvm::json::OStream &J, const Node &n) {
       J.attribute("crosses_cache_line", true);
     if (n.location)
       J.attribute("memory_location", n.location);
-    if (n.vtable)
-      J.attributeObject("points_to", [&] {
-        attr(J, "table", n.vtable->table);
-        J.attribute("slot", n.vtable->slot);
-      });
     if (n.kind == NodeKind::Record)
       J.attributeArray("members", [&] {
         for (const Node &c : n.children)
           node(J, c);
       });
-  });
-}
-
-void vtable(llvm::json::OStream &J, const VTable &vt) {
-  J.object([&] {
-    attr(J, "name", vt.name);
-    if (vt.vfptrOffset)
-      J.attribute("vfptr_offset", *vt.vfptrOffset);
-    if (!vt.tableStarts.empty())
-      J.attributeArray("table_starts", [&] {
-        for (unsigned s : vt.tableStarts)
-          J.value(s);
-      });
-    J.attributeArray("address_points", [&] {
-      for (const AddressPoint &ap : vt.addressPoints)
-        J.object([&] {
-          J.attribute("index", ap.index);
-          J.attributeArray("subobjects", [&] {
-            for (const Subobject &s : ap.subobjects)
-              J.object([&] {
-                attr(J, "type", s.type);
-                J.attribute("offset", s.offset);
-              });
-          });
-        });
-    });
-    J.attributeArray("entries", [&] {
-      for (size_t i = 0; i < vt.entries.size(); ++i) {
-        const VTableEntry &e = vt.entries[i];
-        J.object([&] {
-          J.attribute("index", i);
-          attr(J, "kind", entryName(e.kind));
-          switch (e.kind) {
-          case EntryKind::VCallOffset:
-          case EntryKind::VBaseOffset:
-          case EntryKind::OffsetToTop:
-            J.attribute("value", e.value);
-            break;
-          case EntryKind::RTTI:
-            attr(J, "type", e.text);
-            break;
-          default:
-            attr(J, "function", e.text);
-            if (e.pure)
-              J.attribute("pure", true);
-          }
-          if (e.thunk)
-            J.attributeObject("thunk", [&] {
-              const Thunk &t = *e.thunk;
-              J.attribute("this_adjustment", t.thisAdjust);
-              if (t.vcallOffsetAt)
-                J.attribute("vcall_offset_offset", t.vcallOffsetAt);
-              if (t.virtualThis)
-                J.attribute("virtual_this_adjustment", true);
-              if (t.returnAdjust)
-                J.attribute("return_adjustment", t.returnAdjust);
-              if (t.vbaseOffsetAt)
-                J.attribute("vbase_offset_offset", t.vbaseOffsetAt);
-              if (t.virtualReturn)
-                J.attribute("virtual_return_adjustment", true);
-            });
-        });
-      }
-    });
   });
 }
 
@@ -245,10 +158,6 @@ void report(llvm::json::OStream &J, const Report &report) {
           J.attributeArray("members", [&] {
             for (const Node &c : r.layout.children)
               node(J, c);
-          });
-          J.attributeArray("vtables", [&] {
-            for (const VTable &vt : r.vtables)
-              vtable(J, vt);
           });
         });
     });

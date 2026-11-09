@@ -1,5 +1,5 @@
-// The layout model: a plain description of records and vtables with no
-// dependency on clang. Analyze.cpp fills it; Json.cpp and Text.cpp print it.
+// The layout model: a plain description of records with no dependency on
+// clang. Analyze.cpp fills it; Json.cpp and Text.cpp print it.
 #pragma once
 
 #include <cstdint>
@@ -28,12 +28,6 @@ enum class Role {
   VirtualBase,
 };
 
-// Where a vtable pointer points: entry `slot` of the table called `table`.
-struct VTableRef {
-  std::string table;
-  unsigned slot = 0;
-};
-
 struct Node {
   NodeKind kind = NodeKind::Field;
   Role role = Role::Field;
@@ -56,61 +50,12 @@ struct Node {
   // BitField: the memory location it belongs to, numbered from 1 within the
   // outermost record. Adjacent bitfields of nonzero width share one.
   unsigned location = 0;
-  std::optional<VTableRef> vtable; // Set on VPtr nodes when resolvable.
   std::vector<Node> children;
 };
 
 struct Hole {
   uint64_t offsetBits = 0;
   uint64_t sizeBits = 0;
-};
-
-enum class EntryKind {
-  VCallOffset,
-  VBaseOffset,
-  OffsetToTop,
-  RTTI,
-  Function,
-  CompleteDtor,
-  DeletingDtor, // On Microsoft targets this is the scalar deleting destructor.
-  UnusedFunction,
-};
-
-struct Thunk {
-  int64_t thisAdjust = 0;      // Non-virtual this-pointer adjustment.
-  int64_t vcallOffsetAt = 0;   // Itanium: offset of the vcall offset to load.
-  int64_t returnAdjust = 0;    // Non-virtual return-value adjustment.
-  int64_t vbaseOffsetAt = 0;   // Itanium: offset of the vbase offset to load.
-  bool virtualThis = false;    // Some virtual this-adjustment (any ABI).
-  bool virtualReturn = false;  // Some virtual return adjustment (any ABI).
-};
-
-struct VTableEntry {
-  EntryKind kind = EntryKind::Function;
-  int64_t value = 0;  // Offsets, in bytes.
-  std::string text;   // Function signature or RTTI class name.
-  bool pure = false;
-  std::optional<Thunk> thunk;
-};
-
-struct Subobject {
-  std::string type;
-  int64_t offset = 0; // Bytes from the start of the complete object.
-};
-
-struct AddressPoint {
-  unsigned index = 0; // Entry the vtable pointer points at.
-  std::vector<Subobject> subobjects;
-};
-
-struct VTable {
-  std::string name;
-  std::vector<VTableEntry> entries;
-  std::vector<AddressPoint> addressPoints;
-  // Itanium: start index of each table in the vtable group.
-  std::vector<unsigned> tableStarts;
-  // Microsoft: offset of the vfptr that points at this vftable.
-  std::optional<int64_t> vfptrOffset;
 };
 
 enum class SourceStyle { Keyword, Literal, Comment };
@@ -168,7 +113,6 @@ struct Record {
   std::vector<SourceSpan> sourceSpans; // In order, never overlapping.
   Node layout;
   std::vector<Hole> holes;
-  std::vector<VTable> vtables;
 };
 
 struct Report {

@@ -26,7 +26,6 @@ foreach(input ${cases})
       set(flags --color=false ${ITANIUM})
       set(ext txt)
     endif()
-    list(PREPEND flags --vtables)
     string(REPLACE ";" "|" flags "${flags}")
     add_test(NAME ${name}.${variant}
       COMMAND ${CMAKE_COMMAND}
