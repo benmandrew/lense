@@ -35,6 +35,14 @@ foreach(input ${cases})
   endforeach()
 endforeach()
 
+# Cached runs must report what uncached runs do. Run.cpp is only in
+# lense_core for native builds.
+if(NOT EMSCRIPTEN)
+  add_executable(lense_preamble_test preamble_test.cpp)
+  target_link_libraries(lense_preamble_test PRIVATE lense_core)
+  add_test(NAME preamble COMMAND lense_preamble_test ${cases})
+endif()
+
 # End-to-end and fuzz tests need Python 3 (standard library only).
 find_package(Python3 COMPONENTS Interpreter)
 if(NOT Python3_Interpreter_FOUND)

@@ -63,12 +63,14 @@ extern "C" EMSCRIPTEN_KEEPALIVE char *lense_analyze(const char *code,
       if (auto arg = a.getAsString())
         opts.clangArgs.push_back(arg->str());
 
+  // The page re-runs lense on every edit, mostly below the #include block.
+  static lense::PreambleCache cache;
   const char *file = lang == "c" ? "input.c" : "input.cpp";
   lense::Report report, other;
-  bool ok = lense::run(code, file, opts, report);
+  bool ok = lense::run(code, file, opts, report, &cache);
   if (!compare.empty()) {
     opts.clangArgs.push_back("--target=" + compare);
-    ok &= lense::run(code, file, opts, other);
+    ok &= lense::run(code, file, opts, other, &cache);
   }
   std::string s;
   llvm::raw_string_ostream os(s);
