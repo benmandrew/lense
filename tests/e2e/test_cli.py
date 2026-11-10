@@ -198,6 +198,59 @@ void f() {
         self.assertEqual(recs["f()::Local"]["source"]["text"],
                          "struct Local {\n    int y;\n}\n")
 
+    def test_ranges(self):
+        code = """\
+#define FIELD(n) int n;
+struct V { virtual void f() {} };
+template <typename T> struct Box { virtual ~Box() {} T v; };
+struct D : public Box<char>, virtual V {
+    short a, b;
+    union { int i; float x; };
+    FIELD(m)
+};
+"""
+        path = self.write("t.cpp", code)
+        lines = code.split("\n")
+
+        def text(m):
+            r = m["range"]
+            if r["line"] == r["end_line"]:
+                return lines[r["line"] - 1][r["column"] - 1:r["end_column"] - 1]
+            return f"{r['line']}-{r['end_line']}"
+
+        def found(target):
+            """Each member's text, by name or type; padding has no range."""
+            out = {}
+
+            def walk(ms):
+                for m in ms:
+                    if m["kind"] == "padding":
+                        self.assertNotIn("range", m)
+                    else:
+                        out[f"{m['kind']} {m.get('name') or m['type']}"] = text(m)
+                    walk(m.get("members", []))
+            walk(records(lense("--json", "--ranges", target, path).stdout)["D"]["members"])
+            return out
+
+        for target in [LINUX, MSVC]:
+            with self.subTest(target=target):
+                d = found(target)
+                self.assertEqual(d["record Box<char>"], "public Box<char>")
+                # A virtual function with a body stops before it, also in an
+                # instantiation that never needed the body.
+                self.assertEqual(d["vptr Box<char>"], "virtual ~Box()")
+                self.assertEqual(d["vptr V"], "virtual void f()")
+                self.assertEqual(d["record V"], "virtual V")
+                self.assertEqual(d["field a"], "short a")
+                # The second declarator does not take the first one's type.
+                self.assertEqual(d["field b"], "b")
+                self.assertEqual(d["record (anonymous union)"], "union { int i; float x; }")
+                self.assertEqual(d["field x"], "float x")
+                # A field from a macro is the macro call.
+                self.assertEqual(d["field m"], "FIELD(m)")
+        self.assertEqual(found(MSVC)["vbptr D"], "virtual V")
+        self.assertNotIn("range", linux_json(path)["D"]["members"][0])
+
     def test_target_switches_abi(self):
         path = self.write("t.cpp", DERIVED)
         itanium = json.loads(lense("--json", LINUX, path).stdout)

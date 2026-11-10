@@ -7,6 +7,15 @@ export interface Span {
   bit_size?: number;
 }
 
+/** Where a member is written in the input: lines and byte columns from 1,
+ *  with end_column one past its last character. */
+export interface SourceRange {
+  line: number;
+  column: number;
+  end_line: number;
+  end_column: number;
+}
+
 export type NodeKind =
   | 'record' | 'field' | 'bitfield' | 'vptr' | 'vbptr' | 'vtordisp' | 'padding';
 
@@ -24,6 +33,8 @@ export interface LayoutNode extends Span {
   crosses_cache_line?: true;
   /** Bitfields only: which memory location (C++ [intro.memory]) it is in. */
   memory_location?: number;
+  /** With the ranges option: the declaration that put it there. */
+  range?: SourceRange;
   members?: LayoutNode[];
 }
 
@@ -86,6 +97,8 @@ export interface Options {
   cacheLine: number;
   /** A second target triple to compare with. */
   compare?: string;
+  /** Give each member its SourceRange. */
+  ranges?: boolean;
 }
 
 /** [start, end) of a node or hole, in bits from the start of the record. */

@@ -91,6 +91,13 @@ void node(llvm::json::OStream &J, const Node &n) {
       J.attribute("crosses_cache_line", true);
     if (n.location)
       J.attribute("memory_location", n.location);
+    if (n.range.line)
+      J.attributeObject("range", [&] {
+        J.attribute("line", n.range.line);
+        J.attribute("column", n.range.column);
+        J.attribute("end_line", n.range.endLine);
+        J.attribute("end_column", n.range.endColumn);
+      });
     if (n.kind == NodeKind::Record)
       J.attributeArray("members", [&] {
         for (const Node &c : n.children)

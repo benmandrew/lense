@@ -40,5 +40,6 @@ lense [options] <file | -> [-- <clang arguments>]
 | `--record=<name>` | Show only the named records |
 | `--expand-system` | Expand members whose types come from system headers |
 | `--source` | Print each record's definition above its layout |
+| `--ranges` | Give each member's source range in the JSON output |
 | `--cache-line=<bytes>` | Mark cache-line boundaries (default 64, 0 for none) |
 | `--lang=c\|c++` | Language of standard input |

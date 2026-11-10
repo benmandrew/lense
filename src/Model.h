@@ -28,6 +28,15 @@ enum class Role {
   VirtualBase,
 };
 
+// Where something is written in the main file: lines and byte columns from
+// 1, with the end column one past its last character. Line 0 is nowhere.
+struct Range {
+  unsigned line = 0;
+  unsigned column = 0;
+  unsigned endLine = 0;
+  unsigned endColumn = 0;
+};
+
 struct Node {
   NodeKind kind = NodeKind::Field;
   Role role = Role::Field;
@@ -50,6 +59,10 @@ struct Node {
   // BitField: the memory location it belongs to, numbered from 1 within the
   // outermost record. Adjacent bitfields of nonzero width share one.
   unsigned location = 0;
+  // What declared it: the field, the base specifier, the virtual function
+  // that needs a vptr, or the virtual base that needs a vbptr or vtordisp.
+  // Empty unless asked for, and for padding.
+  Range range;
   std::vector<Node> children;
 };
 

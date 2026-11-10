@@ -307,6 +307,8 @@ td .sw:not([class*="cat-"]) { visibility: hidden; }
 .seg.cont-r { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .card.hovering .seg:not(.hl) { opacity: 0.3; }
 .seg.hl { box-shadow: 0 0 0 1px var(--surface), 0 0 0 2.5px var(--ink); }
+/* A click moves the editor cursor to the member's declaration. */
+.card .jump { cursor: pointer; }
 
 /* A union's members share bytes, so its lanes are outlined as one group. */
 .bytemap .union {
@@ -401,4 +403,5 @@ td.desc.in-union { background-repeat: no-repeat; background-size: 2px 100%; }
 @media (forced-colors: active) {
   .seg, .sw { border: 1px solid CanvasText; }
   .seg.hl { outline: 2px solid Highlight; }
+  .cm-linked { outline: 1px solid Highlight; }
 }

@@ -12,6 +12,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/Lexer.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
 
 #include <algorithm>
@@ -557,6 +558,84 @@ struct Analyzer {
     return s;
   }
 
+  // -- Source ranges -------------------------------------------------------
+
+  // [begin, end) as written in the main file, with trailing blanks dropped.
+  // With tokenEnd, end is the start of the last token instead.
+  Range range(SourceLocation begin, SourceLocation end, bool tokenEnd) const {
+    if (!opts.ranges || begin.isInvalid() || end.isInvalid())
+      return {};
+    const SourceManager &SM = C.getSourceManager();
+    // Something from a macro is the whole macro call.
+    begin = SM.getExpansionRange(begin).getBegin();
+    if (tokenEnd)
+      end = Lexer::getLocForEndOfToken(SM.getExpansionRange(end).getEnd(), 0,
+                                       SM, C.getLangOpts());
+    else
+      end = SM.getExpansionLoc(end);
+    auto [fid, b] = SM.getDecomposedLoc(begin);
+    auto [endFid, e] = SM.getDecomposedLoc(end);
+    if (fid != SM.getMainFileID() || endFid != fid || e <= b)
+      return {};
+    llvm::StringRef buf = SM.getBufferData(fid);
+    while (e > b && llvm::isSpace(buf[e - 1]))
+      --e;
+    return {SM.getLineNumber(fid, b), SM.getColumnNumber(fid, b),
+            SM.getLineNumber(fid, e), SM.getColumnNumber(fid, e)};
+  }
+
+  Range range(clang::SourceRange r) const {
+    return range(r.getBegin(), r.getEnd(), true);
+  }
+
+  // A field from its type to the end of its declarator. In `int a, b;` the
+  // type belongs to a, so b starts at its name. An anonymous struct or
+  // union is its whole definition.
+  Range fieldRange(const FieldDecl *F, const FieldDecl *prev) const {
+    if (F->isAnonymousStructOrUnion())
+      return range(F->getType()->getAsRecordDecl()->getSourceRange());
+    SourceLocation begin = F->getBeginLoc();
+    if (prev && prev->getBeginLoc() == begin)
+      begin = F->getLocation();
+    return range(begin, F->getEndLoc(), true);
+  }
+
+  // A virtual function up to its body, if it has one there. A member of a
+  // class template instantiation may not have its body yet, so look at the
+  // template's.
+  Range methodRange(const CXXMethodDecl *M) const {
+    const FunctionDecl *F = M->getTemplateInstantiationPattern();
+    if (!F)
+      F = M;
+    if (const Stmt *body = F->getBody();
+        body && F->doesThisDeclarationHaveABody())
+      return range(F->getBeginLoc(), body->getBeginLoc(), false);
+    return range(F->getSourceRange());
+  }
+
+  // What gives CXX its own vptr: the first virtual function it declares that
+  // overrides nothing, else its first virtual function, else its first
+  // virtual base.
+  Range vptrRange(const CXXRecordDecl *CXX) const {
+    const CXXMethodDecl *first = nullptr;
+    for (const CXXMethodDecl *M : CXX->methods()) {
+      if (M->isImplicit() || !M->isVirtual())
+        continue;
+      if (M->size_overridden_methods() == 0)
+        return methodRange(M);
+      if (!first)
+        first = M;
+    }
+    return first ? methodRange(first) : vbptrRange(CXX);
+  }
+
+  Range vbptrRange(const CXXRecordDecl *CXX) const {
+    for (const CXXBaseSpecifier &B : CXX->bases())
+      if (B.isVirtual())
+        return range(B.getSourceRange());
+    return {};
+  }
+
   // -- Record layout -------------------------------------------------------
 
   static Node leaf(NodeKind kind, uint64_t offsetBits, uint64_t sizeBits,
@@ -596,32 +675,45 @@ struct Analyzer {
     if (CXX) {
       const CXXRecordDecl *primary = L.getPrimaryBase();
       // Itanium: a dynamic class with no primary base owns a vtable pointer.
-      if (ms ? L.hasOwnVFPtr() : CXX->isDynamicClass() && !primary)
+      if (ms ? L.hasOwnVFPtr() : CXX->isDynamicClass() && !primary) {
         N.children.push_back(leaf(NodeKind::VPtr, offsetBits, pointerBits,
                                   pointerAlign, recordName(CXX)));
+        N.children.back().range = vptrRange(CXX);
+      }
 
-      std::vector<const CXXRecordDecl *> bases;
+      std::vector<const CXXBaseSpecifier *> bases;
       for (const CXXBaseSpecifier &B : CXX->bases())
         if (!B.isVirtual())
-          bases.push_back(B.getType()->getAsCXXRecordDecl());
+          bases.push_back(&B);
+      auto offset = [&](const CXXBaseSpecifier *B) {
+        return L.getBaseClassOffset(B->getType()->getAsCXXRecordDecl());
+      };
       std::stable_sort(bases.begin(), bases.end(),
-                       [&](const CXXRecordDecl *a, const CXXRecordDecl *b) {
-                         return L.getBaseClassOffset(a) <
-                                L.getBaseClassOffset(b);
+                       [&](const CXXBaseSpecifier *a,
+                           const CXXBaseSpecifier *b) {
+                         return offset(a) < offset(b);
                        });
-      for (const CXXRecordDecl *B : bases)
+      for (const CXXBaseSpecifier *B : bases) {
+        const CXXRecordDecl *BD = B->getType()->getAsCXXRecordDecl();
         N.children.push_back(
-            base(B, B == primary ? Role::PrimaryBase : Role::Base,
-                 offsetBits + C.toBits(L.getBaseClassOffset(B))));
+            base(BD, BD == primary ? Role::PrimaryBase : Role::Base,
+                 offsetBits + C.toBits(offset(B))));
+        N.children.back().range = range(B->getSourceRange());
+      }
 
-      if (L.hasOwnVBPtr())
+      if (L.hasOwnVBPtr()) {
         N.children.push_back(leaf(NodeKind::VBPtr,
                                   offsetBits + C.toBits(L.getVBPtrOffset()),
                                   pointerBits, pointerAlign, recordName(CXX)));
+        N.children.back().range = vbptrRange(CXX);
+      }
     }
 
     unsigned fieldNo = 0;
+    const FieldDecl *prev = nullptr;
     for (const FieldDecl *F : RD->fields()) {
+      Range written = fieldRange(F, prev);
+      prev = F;
       uint64_t fieldBits = offsetBits + L.getFieldOffset(fieldNo++);
       QualType T = F->getType();
       // A field of class type is laid out in place, unless the class comes
@@ -641,6 +733,7 @@ struct Analyzer {
         layoutRecord(child, def, fieldBits, true);
         child.alignBits = fieldAlign(F);
         child.sizeBits = fieldSize(F);
+        child.range = written;
         N.children.push_back(std::move(child));
         continue;
       }
@@ -653,6 +746,7 @@ struct Analyzer {
       N.children.push_back(leaf(bit ? NodeKind::BitField : NodeKind::Field,
                                 fieldBits, size, align, typeName(T),
                                 F->getName().str()));
+      N.children.back().range = written;
     }
 
     if (CXX && includeVBases) {
@@ -661,14 +755,18 @@ struct Analyzer {
         const CXXRecordDecl *VB = B.getType()->getAsCXXRecordDecl();
         uint64_t vbBits = offsetBits + C.toBits(L.getVBaseClassOffset(VB));
         auto it = vbaseInfo.find(VB);
-        if (it != vbaseInfo.end() && it->second.hasVtorDisp())
+        Range written = range(B.getSourceRange());
+        if (it != vbaseInfo.end() && it->second.hasVtorDisp()) {
           N.children.push_back(
               leaf(NodeKind::VtorDisp, vbBits - 32, 32, 32, recordName(VB)));
+          N.children.back().range = written;
+        }
         N.children.push_back(base(VB,
                                   VB == L.getPrimaryBase()
                                       ? Role::PrimaryVirtualBase
                                       : Role::VirtualBase,
                                   vbBits));
+        N.children.back().range = written;
       }
     }
   }

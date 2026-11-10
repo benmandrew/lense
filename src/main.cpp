@@ -28,6 +28,10 @@ static cl::opt<bool> source("source",
                             cl::desc("Print each record's definition above "
                                      "its layout"),
                             cl::cat(category));
+static cl::opt<bool> ranges("ranges",
+                            cl::desc("Give each member's source range in the "
+                                     "JSON output"),
+                            cl::cat(category));
 static cl::list<std::string>
     records("record", cl::desc("Only show this record (qualified name)"),
             cl::value_desc("name"), cl::CommaSeparated, cl::cat(category));
@@ -92,6 +96,7 @@ int main(int argc, char **argv) {
   opts.analyze.cacheLine = cacheLine;
   opts.analyze.expandSystem = expandSystem;
   opts.analyze.source = source;
+  opts.analyze.ranges = ranges;
   opts.analyze.records.assign(records.begin(), records.end());
   if (!target.empty())
     opts.clangArgs.push_back("--target=" + target);

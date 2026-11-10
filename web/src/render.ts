@@ -1,10 +1,15 @@
 // Draws a lense report: per record, a byte map and the member table (worded
 // like the CLI's text output). With a second report, draws the two targets
 // side by side instead, as lense --compare does.
-import { bits, type LayoutNode, type LayoutRecord, type Report } from './types';
+import { bits, type LayoutNode, type LayoutRecord, type Report, type SourceRange } from './types';
 
-/** Moves the editor cursor to a record's declaration. */
-export type Locate = (line: number, column: number) => void;
+/** The editor that holds the code the report describes. */
+export interface Source {
+  /** Moves the cursor to a line and byte column. */
+  locate(line: number, column: number): void;
+  /** Marks these ranges, replacing any marked before. */
+  mark(ranges: SourceRange[]): void;
+}
 
 type Category = 'field' | 'base' | 'ptr' | 'pad';
 const CATEGORIES: [Category, string][] = [
@@ -355,12 +360,12 @@ function members(
 
 // --- Records --------------------------------------------------------------
 
-function heading(r: LayoutRecord, locate: Locate): HTMLElement {
+function heading(r: LayoutRecord, source: Source): HTMLElement {
   const h = el('h2');
   span(h, 'tag', r.tag);
   const name = el('button', 'name', r.name);
   name.title = `Line ${r.location.line}`;
-  name.onclick = () => locate(r.location.line, r.location.column);
+  name.onclick = () => source.locate(r.location.line, r.location.column);
   h.append(' ', name);
   return h;
 }
@@ -416,45 +421,80 @@ function reorder(card: HTMLElement, r: LayoutRecord) {
   card.append(p);
 }
 
-/** Hovering a member highlights it in every view; hovering a base or a
- *  field of record type highlights everything inside it. An element can
- *  stand for several members (one per target), separated by spaces. */
-function linkHover(card: HTMLElement) {
+/** Every node of a tree by its path, as data-path holds it. */
+function index(nodes: LayoutNode[], prefix: string,
+               out = new Map<string, LayoutNode>()): Map<string, LayoutNode> {
+  nodes.forEach((n, i) => {
+    const path = child(prefix, i);
+    out.set(path, n);
+    index(n.members ?? [], path, out);
+  });
+  return out;
+}
+
+/** Hovering a member highlights it in every view and marks its declaration
+ *  in the source; hovering a base or a field of record type does the same
+ *  for everything inside it. Clicking one moves the cursor to it. An element
+ *  can stand for several members (one per target), separated by spaces. */
+function linkHover(card: HTMLElement, nodes: Map<string, LayoutNode>, source: Source) {
   const marked: Element[] = [];
+  const within = (q: string, p: string) => q === p || q.startsWith(`${p}.`);
   const clear = () => {
     for (const m of marked.splice(0)) m.classList.remove('hl');
   };
+  const declared = (el: HTMLElement) =>
+    el.dataset.path!.split(' ').map((p) => nodes.get(p)?.range).find(Boolean);
+  for (const m of card.querySelectorAll<HTMLElement>('[data-path]'))
+    if (declared(m)) m.classList.add('jump');
+
   card.addEventListener('pointerover', (ev) => {
     const target = (ev.target as Element).closest<HTMLElement>('[data-path]');
     clear();
     card.classList.toggle('hovering', !!target);
-    if (!target) return;
+    if (!target) {
+      source.mark([]);
+      return;
+    }
     const ps = target.dataset.path!.split(' ');
     for (const m of card.querySelectorAll<HTMLElement>('[data-path]')) {
       const qs = m.dataset.path!.split(' ');
-      if (qs.some((q) => ps.some((p) => q === p || q.startsWith(`${p}.`)))) {
+      if (qs.some((q) => ps.some((p) => within(q, p)))) {
         m.classList.add('hl');
         marked.push(m);
       }
     }
+    // The same declaration can stand for members on both targets, or for a
+    // base and the vtordisp in front of it.
+    const ranges = new Map<string, SourceRange>();
+    for (const [q, n] of nodes) {
+      if (n.range && ps.some((p) => within(q, p)))
+        ranges.set(Object.values(n.range).join(':'), n.range);
+    }
+    source.mark([...ranges.values()]);
   });
   card.addEventListener('pointerleave', () => {
     clear();
     card.classList.remove('hovering');
+    source.mark([]);
+  });
+  card.addEventListener('click', (ev) => {
+    const target = (ev.target as Element).closest<HTMLElement>('[data-path]');
+    const r = target && declared(target);
+    if (r) source.locate(r.line, r.column);
   });
 }
 
-function record(r: LayoutRecord, report: Report, locate: Locate): HTMLElement {
+function record(r: LayoutRecord, report: Report, source: Source): HTMLElement {
   const ms = isMs(report);
   const cacheLine = report.cache_line ?? 0;
   const card = el('article', 'card');
-  card.append(heading(r, locate), summary(r, report.endian));
+  card.append(heading(r, source), summary(r, report.endian));
   traits(card, r);
   const all = leaves(r.members, '');
   if (r.size > 0 && all.length) card.append(legend(all), byteMap(r, all, ms, cacheLine));
   card.append(members(r, categories(all), ms, cacheLine));
   reorder(card, r);
-  linkHover(card);
+  linkHover(card, index(r.members, ''), source);
   return card;
 }
 
@@ -586,9 +626,9 @@ function compareTable(rows: Pair[], a: Report, b: Report, cats: Map<string, Cate
 }
 
 function compareRecord(ra: LayoutRecord, rb: LayoutRecord, a: Report, b: Report,
-                       locate: Locate): HTMLElement {
+                       source: Source): HTMLElement {
   const card = el('article', 'card');
-  card.append(heading(ra, locate));
+  card.append(heading(ra, source));
   const rows: Pair[] = [];
   merge(ra.members, rb.members, 'a', 'b', 0, rows);
   if (ra.size === rb.size && ra.align === rb.align && rows.every(sameRow)) {
@@ -614,18 +654,18 @@ function compareRecord(ra: LayoutRecord, rb: LayoutRecord, a: Report, b: Report,
       card.append(el('p', 'maplabel', report.target), byteMap(r, ls, isMs(report)));
   }
   card.append(compareTable(rows, a, b, categories(all)));
-  linkHover(card);
+  linkHover(card, index(rb.members, 'b', index(ra.members, 'a')), source);
   return card;
 }
 
-function onlyOn(r: LayoutRecord, target: string, locate: Locate): HTMLElement {
+function onlyOn(r: LayoutRecord, target: string, source: Source): HTMLElement {
   const card = el('article', 'card');
-  card.append(heading(r, locate), el('p', 'summary', `only on ${target}`));
+  card.append(heading(r, source), el('p', 'summary', `only on ${target}`));
   return card;
 }
 
 /** Draws report, or with compare, the differences between the two. */
-export function render(out: HTMLElement, report: Report, locate: Locate, compare?: Report) {
+export function render(out: HTMLElement, report: Report, source: Source, compare?: Report) {
   const frag = document.createDocumentFragment();
   if (compare) {
     frag.append(el('p', 'meta', `${report.target} (${abiText(report)}) compared with ` +
@@ -634,16 +674,16 @@ export function render(out: HTMLElement, report: Report, locate: Locate, compare
     const inA = new Set(report.records.map((r) => r.name));
     for (const r of report.records) {
       const other = inB.get(r.name);
-      frag.append(other ? compareRecord(r, other, report, compare, locate)
-                        : onlyOn(r, report.target, locate));
+      frag.append(other ? compareRecord(r, other, report, compare, source)
+                        : onlyOn(r, report.target, source));
     }
     for (const r of compare.records)
-      if (!inA.has(r.name)) frag.append(onlyOn(r, compare.target, locate));
+      if (!inA.has(r.name)) frag.append(onlyOn(r, compare.target, source));
   } else {
     let meta = `${report.target} · ${abiText(report)}`;
     if (report.cache_line) meta += ` · ${report.cache_line}-byte cache lines`;
     frag.append(el('p', 'meta', `${meta} · ${plural(report.records.length, 'record')}`));
-    report.records.forEach((r) => frag.append(record(r, report, locate)));
+    report.records.forEach((r) => frag.append(record(r, report, source)));
   }
   if (!report.records.length && !compare?.records.length)
     frag.append(el('p', 'empty', 'No records. Declare a struct, class or union.'));

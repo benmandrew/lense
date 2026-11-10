@@ -28,7 +28,7 @@ char *error(const std::string &message) {
 //   {"lang": "c" | "c++", "target": "<triple>", "expandSystem": false,
 //    "records": ["<name>", ...],
 //    "args": ["<clang argument>", ...], "cacheLine": 64, "reorder": true,
-//    "compare": "<triple>"}
+//    "ranges": false, "compare": "<triple>"}
 // Returns {"ok": <no clang errors>, "report": <as lense --json>} or
 // {"error": "<message>"}, as a string the caller must free(). With
 // "compare", the layout for that target is in "compare".
@@ -47,6 +47,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE char *lense_analyze(const char *code,
     return error("lang must be c or c++");
   opts.analyze.expandSystem = o->getBoolean("expandSystem").value_or(false);
   opts.analyze.reorder = o->getBoolean("reorder").value_or(true);
+  opts.analyze.ranges = o->getBoolean("ranges").value_or(false);
   int64_t cacheLine = o->getInteger("cacheLine").value_or(64);
   if (cacheLine < 0 || cacheLine > (1 << 20) || (cacheLine & (cacheLine - 1)))
     return error("cacheLine must be a power of two or 0");

@@ -1,13 +1,14 @@
 import { cpp } from '@codemirror/lang-cpp';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { type Diagnostic, lintGutter, setDiagnostics } from '@codemirror/lint';
-import type { EditorState } from '@codemirror/state';
+import { type EditorState, StateEffect, StateField, type Text } from '@codemirror/state';
+import { Decoration, type DecorationSet } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import { basicSetup, EditorView } from 'codemirror';
 import EXAMPLES from 'virtual:examples';
 import type { FromWorker, ToWorker } from './protocol';
 import { el, render, tooltips } from './render';
-import type { Options } from './types';
+import type { Options, SourceRange } from './types';
 import './style.css';
 
 const SAMPLE = `// Edit the code: the layouts update as you type.
@@ -115,7 +116,7 @@ function options(s: Saved): Options {
   if (s.std) args.unshift(`-std=${s.std}`);
   return {
     lang: s.lang, target: s.target, expandSystem: s.expand, args,
-    cacheLine: s.cacheLine, ...(s.compare ? { compare: s.compare } : {}),
+    cacheLine: s.cacheLine, ranges: true, ...(s.compare ? { compare: s.compare } : {}),
   };
 }
 
@@ -182,13 +183,32 @@ const theme = EditorView.theme({
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection':
     { backgroundColor: 'var(--selection) !important' },
   '.cm-tooltip': { backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' },
+  // The selection colour, which every syntax colour reaches 4.5:1 on. It is
+  // close to --code-bg, so an underline carries the mark.
+  '.cm-linked': { backgroundColor: 'var(--hl-bg)', boxShadow: 'inset 0 -1.5px var(--muted)' },
 }, { dark: true });
+
+// The declarations of the member under the pointer in the layouts.
+const setLinked = StateEffect.define<{ from: number; to: number }[]>();
+const linkedMark = Decoration.mark({ class: 'cm-linked' });
+const linked = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(set, tr) {
+    set = set.map(tr.changes);
+    for (const e of tr.effects) {
+      if (e.is(setLinked))
+        set = Decoration.set(e.value.map((r) => linkedMark.range(r.from, r.to)), true);
+    }
+    return set;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 let timer = 0;
 const view = new EditorView({
   parent: $('editor'),
   extensions: [
-    basicSetup, cpp(), syntaxHighlighting(highlight), theme, lintGutter(),
+    basicSetup, cpp(), syntaxHighlighting(highlight), theme, lintGutter(), linked,
     EditorView.updateListener.of((u) => {
       if (!u.docChanged) return;
       clearTimeout(timer);
@@ -197,11 +217,27 @@ const view = new EditorView({
   ],
 });
 
+/** A line and column from clang, both from 1, as a document position.
+ *  clang counts columns in UTF-8 bytes and CodeMirror in UTF-16 units. */
+function position(doc: Text, line: number, column: number): number {
+  const l = doc.line(Math.min(Math.max(line, 1), doc.lines));
+  const bytes = new TextEncoder().encode(l.text).subarray(0, Math.max(column - 1, 0));
+  return l.from + Math.min(new TextDecoder().decode(bytes).length, l.length);
+}
+
 function locate(line: number, column: number) {
-  const l = view.state.doc.line(Math.min(line, view.state.doc.lines));
-  const pos = Math.min(l.from + column - 1, l.to);
+  const pos = position(view.state.doc, line, column);
   view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: 'center' }) });
   view.focus();
+}
+
+function mark(ranges: SourceRange[]) {
+  const doc = view.state.doc;
+  const spans = ranges
+    .map((r) => ({ from: position(doc, r.line, r.column), to: position(doc, r.end_line, r.end_column) }))
+    .filter((s) => s.from < s.to);
+  if (spans.length || view.state.field(linked).size)
+    view.dispatch({ effects: setLinked.of(spans) });
 }
 
 // --- Worker ---------------------------------------------------------------
@@ -261,6 +297,8 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       send();
       if (m.id !== seq) return;
       view.dispatch(setDiagnostics(view.state, diagnostics(view.state, m.stderr)));
+      // The element under the pointer goes, so its pointerleave never fires.
+      mark([]);
       output.replaceChildren();
       const r = m.result;
       if ('error' in r) {
@@ -271,7 +309,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
           output.append(el('p', 'failure',
                            'clang reported errors. The records it could lay out are below.'));
         }
-        render(output, r.report, locate, r.compare);
+        render(output, r.report, { locate, mark }, r.compare);
         status(`${r.ok ? '' : 'errors · '}${Math.round(m.ms)} ms`, !r.ok);
       }
       if (m.stderr.trim()) {
